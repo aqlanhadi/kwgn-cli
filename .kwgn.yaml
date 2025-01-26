@@ -1,0 +1,14 @@
+target: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/
+statement: 
+  MAYBANK_CASA_AND_MAE:
+    file_regex_pattern: 5141*|1621*|1140*
+    totals_and_balances_pattern:
+      starting_balance: BEGINNING BALANCE\s*([\d,]+\.\d+)
+  MAYBANK_2_CC:
+    file_regex_pattern: 0398121207523300*
+    patterns:
+      credit_suffix: CR
+      starting_balance: YOUR PREVIOUS STATEMENT BALANCE\s*([\d,]+\.\d+(?:CR)?)
+      ending_balance: SUB TOTAL\/JUMLAH\s*([\d,]+\.\d+(?:CR)?)
+      total_credit: TOTAL CREDIT THIS MONTH\s*\(JUMLAH KREDIT\)\s*([\d,]+\.\d+)
+      total_debit: TOTAL DEBIT THIS MONTH\s*\(JUMLAH DEBIT\)\s*([\d,]+\.\d+)
