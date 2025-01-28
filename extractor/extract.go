@@ -24,7 +24,13 @@ func ExecuteAgainstDirectory(dir string) {
 			continue
 		}
 
+		// if match, err := mbb_2_cc.Match(e.Name()); err == nil && match {
 		if match, err := mbb_2_cc.Match(e.Name()); err == nil && match {
+
+			if e.Name() != "0398121207523300_20240728.pdf" {
+				continue
+			}
+
 			fmt.Println("MBB_2CC > ", dir + e.Name())
 			mbb_2_cc.Extract(dir + e.Name())
 			// continue

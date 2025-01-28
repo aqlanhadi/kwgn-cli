@@ -59,7 +59,7 @@ func TestExtractStartingBalanceFromText(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		text, _ := common.ExtractTextFromPDF(viper.GetString("target") + test.path)
+		text, _ := common.ExtractRowsFromPDF(viper.GetString("target") + test.path)
 		result, err := ExtractStartingBalanceFromText(text)
 		assert.NoError(t, err)
 		assert.Equal(t, test.expected, result.String())
@@ -94,7 +94,7 @@ func TestExtractEndingBalanceFromText(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		text, _ := common.ExtractTextFromPDF(viper.GetString("target") + test.path)
+		text, _ := common.ExtractRowsFromPDF(viper.GetString("target") + test.path)
 		result, err := ExtractEndingBalanceFromText(text)
 		assert.NoError(t, err)
 		assert.Equal(t, test.expected, result.String())

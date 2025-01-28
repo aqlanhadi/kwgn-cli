@@ -18,21 +18,22 @@ func Match(fileName string) (bool, error) {
 	return mbb_2_cc.Match([]byte(fileName)), nil
 }
 
-func ExtractStartingBalanceFromText(text string) (decimal.Decimal, error) {
-	pattern, err := regexp.Compile(viper.GetString("statement.MAYBANK_2_CC.patterns.starting_balance"))
-
-	if err != nil {
-		return decimal.Zero, err
-	}
+func ExtractStartingBalanceFromText(rows []string) (decimal.Decimal, error) {
+	pattern := regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.starting_balance"))
 
 	total := decimal.NewFromFloat(0)
 
-	for _, match := range pattern.FindAllStringSubmatch(text, -1) {
+	for _, text := range rows {
 
-		is_credit := strings.HasSuffix(match[1], viper.GetString("statement.MAYBANK_2_CC.patterns.credit_suffix"))
-		stripped := regexp.MustCompile(`[^0-9.]`).ReplaceAllString(match[1], "")
+		match := pattern.Match([]byte(text))
 
-		if is_credit {
+		if !match {
+			continue
+		}
+
+		stripped := regexp.MustCompile(`[^0-9.]`).ReplaceAllString(text, "")
+
+		if strings.HasSuffix(strings.TrimSpace(text), viper.GetString("statement.MAYBANK_2_CC.patterns.credit_suffix")) {
 			stripped = "-" + stripped
 		}
 
@@ -43,7 +44,7 @@ func ExtractStartingBalanceFromText(text string) (decimal.Decimal, error) {
 	return total, nil
 }
 
-func ExtractEndingBalanceFromText(text string) (decimal.Decimal, error) {
+func ExtractEndingBalanceFromText(rows []string) (decimal.Decimal, error) {
 	pattern, err := regexp.Compile(viper.GetString("statement.MAYBANK_2_CC.patterns.ending_balance"))
 
 	if err != nil {
@@ -52,20 +53,39 @@ func ExtractEndingBalanceFromText(text string) (decimal.Decimal, error) {
 
 	total := decimal.NewFromFloat(0)
 
-	for _, match := range pattern.FindAllStringSubmatch(text, -1) {
+	for _, text := range rows {
 
-		is_credit := strings.HasSuffix(match[1], viper.GetString("statement.MAYBANK_2_CC.patterns.credit_suffix"))
-		stripped := regexp.MustCompile(`[^0-9.]`).ReplaceAllString(match[1], "")
+		match := pattern.Match([]byte(text))
 
-		if is_credit {
+		if !match {
+			continue
+		}
+
+		stripped := regexp.MustCompile(`[^0-9.]`).ReplaceAllString(text, "")
+
+		if strings.HasSuffix(strings.TrimSpace(text), viper.GetString("statement.MAYBANK_2_CC.patterns.credit_suffix")) {
 			stripped = "-" + stripped
 		}
-		
+
 		in_decimal, _ := decimal.NewFromString(stripped)
 		total = total.Add(in_decimal)
 	}
 
 	return total, nil
+}
+
+func ExtractStatementDateFromText(rows []string) (string, error) {
+
+	pattern := regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.statement_date"))
+
+	for _, text := range rows {
+		match := pattern.FindString(text)
+		if match != "" {
+			return match, nil
+		}
+	}
+
+	return "", nil
 }
 
 func ExtractTotalDebitFromText(text string) (float64, error) {
