@@ -11,7 +11,7 @@ import (
 
 
 
-func Extract(path string) {
+func Extract(path string) common.Statement {
 	text, err := common.ExtractRowsFromPDF(path)
 	if err != nil {
 		log.Fatal(err)
@@ -42,4 +42,5 @@ func Extract(path string) {
 		log.Println("\t\t❌", "Ending balance does not match the calculated ending balance")
 	}
 
+	return statement
 }
