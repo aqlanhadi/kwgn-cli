@@ -1,7 +1,6 @@
 package extractor
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -9,33 +8,30 @@ import (
 	"github.com/aqlanhadi/kwgn/extractor/mbb_mae_and_casa"
 )
 
-func ExecuteAgainstDirectory(dir string) {
-
-	entries, err := os.ReadDir(dir)
-    if err != nil {
-        log.Fatal(err)
-    }
- 
-    for _, e := range entries {
-
-		if match, err := mbb_mae_and_casa.Match(e.Name()); err == nil && match {
-			// Match mbb_mae_casa_pattern
-			// fmt.Println("MBB_MAE > ", e.Name())
-			continue
+func ExecuteAgainstPath(path string) {
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		log.Println("📂 Scanning ", path)
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			log.Fatal(err)
 		}
-
-		// if match, err := mbb_2_cc.Match(e.Name()); err == nil && match {
-		if match, err := mbb_2_cc.Match(e.Name()); err == nil && match {
-
-			if e.Name() != "0000000000000000_20240728.pdf" {
-				continue
-			}
-
-			fmt.Println("MBB_2CC > ", dir + e.Name())
-			mbb_2_cc.Extract(dir + e.Name())
-			// continue
-			break
+		for _, e := range entries {
+			processFile(path + e.Name())
 		}
-		
-    }
+	} else {
+		log.Println("📄 Scanning ", path)
+		processFile(path)
+	}
+}
+
+func processFile(filePath string) {
+	if match, err := mbb_mae_and_casa.Match(filePath); err == nil && match {
+		log.Println("\t📄 Extracting MBB_MAE transactions from ", filePath)
+		// Call the appropriate extraction function here
+		return
+	}
+	if match, err := mbb_2_cc.Match(filePath); err == nil && match {
+		log.Println("\t📄 Extracting MBB2CC transactions from ", filePath)
+		mbb_2_cc.Extract(filePath)
+	}
 }

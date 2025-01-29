@@ -1,4 +1,5 @@
 target: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/
+output: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/Output/
 statement: 
   MAYBANK_CASA_AND_MAE:
     file_regex_pattern: 5141*|1621*|1140*
@@ -12,5 +13,8 @@ statement:
       ending_balance: SUB TOTAL\/JUMLAH\s*([\d,]+\.\d+(?:CR)?)
       total_credit: TOTAL CREDIT THIS MONTH\s*\(JUMLAH KREDIT\)\s*([\d,]+\.\d+)
       total_debit: TOTAL DEBIT THIS MONTH\s*\(JUMLAH DEBIT\)\s*([\d,]+\.\d+)
-      keep: (?m)^(\d{2}/\d{2})\s+(\d{2}/\d{2})\s+(.+?)\s+([\d,.]+(?:CR)?)$
+      transaction: (\d{2}\/\d{2})\s+(\d{2}\/\d{2})\s+(.+?)\s+([\d,.]+(?:CR)?)\s*$
       statement_date: \d{2}\s(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s\d{2}
+      timezone: Asia/Kuala_Lumpur
+      statement_format: "_2 Jan 06"
+      date_format: "_2/1"

@@ -1,8 +1,31 @@
 package common
 
 import (
+	"time"
+
 	"github.com/dslipak/pdf"
+	"github.com/shopspring/decimal"
 )
+
+type Statement struct {
+	StartingBalance decimal.Decimal `json:"starting_balance"`
+	EndingBalance   decimal.Decimal `json:"ending_balance"`
+	StatementDate   time.Time       `json:"statement_date"`
+	Transactions    []Transaction   `json:"transactions"`
+	TotalCredit     decimal.Decimal `json:"total_credit"`
+	TotalDebit      decimal.Decimal `json:"total_debit"`
+	Nett            decimal.Decimal `json:"nett"`
+	CalculatedEndingBalance decimal.Decimal `json:"calculated_ending_balance"`
+}
+
+type Transaction struct {
+    Sequence     int             `json:"sequence"`
+    Date         time.Time       `json:"date"`
+    Descriptions []string        `json:"descriptions"`
+    Type         string          `json:"type"`
+    Amount       decimal.Decimal `json:"amount"`
+    Balance      decimal.Decimal `json:"balance"`
+}
 
 func ExtractRowsFromPDF(path string) ([]string, error) {
 	r, err := pdf.Open(path)
