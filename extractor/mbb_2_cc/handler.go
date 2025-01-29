@@ -139,7 +139,7 @@ func ExtractTransactionsFromText(rows []string, statement *common.Statement) ([]
 		transactions = append(transactions, common.Transaction{
 			Sequence:     sequence,
 			Date:         date,
-			Descriptions: []string{},
+			Descriptions: []string{match[3]},
 			Type:         "",
 			Amount:       amount,
 			Balance:      balance,
