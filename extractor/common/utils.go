@@ -27,7 +27,7 @@ type Transaction struct {
     Balance      decimal.Decimal `json:"balance"`
 }
 
-func ExtractRowsFromPDF(path string) ([]string, error) {
+func ExtractRowsFromPDF(path string) (*[]string, error) {
 	r, err := pdf.Open(path)
 	// remember close file
 	if err != nil {
@@ -36,7 +36,7 @@ func ExtractRowsFromPDF(path string) ([]string, error) {
 
 	extracted_rows := []string{}
 	
-	for no := 1; no < r.NumPage(); no++ { // Loop over each page.
+	for no := 1; no <= r.NumPage(); no++ { // Loop over each page.
 		page := r.Page(no)
 		rows, _ := page.GetTextByRow()
 		for _, row := range rows { // Loop over each row of text in the page.
@@ -54,7 +54,7 @@ func ExtractRowsFromPDF(path string) ([]string, error) {
 
 	// fmt.Println("Extracted rows: ", extracted_rows)
 
-	return extracted_rows, nil
+	return &extracted_rows, nil
     // buf.ReadFrom(b)
 	// return buf.String(), nil
 }
