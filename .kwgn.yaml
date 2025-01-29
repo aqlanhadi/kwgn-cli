@@ -2,11 +2,22 @@ target: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/
 output: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/Output/
 statement: 
   MAYBANK_CASA_AND_MAE:
-    file_regex_pattern: 5141*|1621*|1140*
-    totals_and_balances_pattern:
+    file_regex_pattern: .*5141.*|.*1621.*|.*1140.*
+    patterns:
       starting_balance: BEGINNING BALANCE\s*([\d,]+\.\d+)
+      ending_balance: ENDING BALANCE\s*:\s*([\d,]+\.\d+)
+      credit_suffix: CR
+      statement_date: (\d{2}\/\d{2}\/\d{2})
+      statement_format: _2/01/06
+      total_debit: TOTAL DEBIT\s*:\s*([\d,]+\.\d+)
+      total_credit: TOTAL CREDIT\s*:\s*([\d,]+\.\d+)
+      main_transaction_line: (\d{2}\/\d{2}(?:\/\d{2})?)(.+?)([\d,]*\.\d+[+-])\s([\d,]*\.\d+(DR)?)
+      description_transaction_line: (^\s+\S.*)
+      amount_debit_suffix: "-"
+      balance_debit_suffix: DR
+      date_format: "_2/1"
   MAYBANK_2_CC:
-    file_regex_pattern: 0000000000000000*
+    file_regex_pattern: .*0000000000000000.*
     patterns:
       credit_suffix: CR
       starting_balance: YOUR PREVIOUS STATEMENT BALANCE\s*([\d,]+\.\d+(?:CR)?)

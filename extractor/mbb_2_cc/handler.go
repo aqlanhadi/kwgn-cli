@@ -20,12 +20,12 @@ func Match(fileName string) (bool, error) {
 	return mbb_2_cc.Match([]byte(fileName)), nil
 }
 
-func ExtractStartingBalanceFromText(rows []string) (decimal.Decimal, error) {
+func ExtractStartingBalanceFromText(rows *[]string) (decimal.Decimal, error) {
 	pattern := regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.starting_balance"))
 
 	total := decimal.NewFromFloat(0)
 
-	for _, text := range rows {
+	for _, text := range *rows {
 
 		match := pattern.Match([]byte(text))
 
@@ -46,7 +46,7 @@ func ExtractStartingBalanceFromText(rows []string) (decimal.Decimal, error) {
 	return total, nil
 }
 
-func ExtractEndingBalanceFromText(rows []string) (decimal.Decimal, error) {
+func ExtractEndingBalanceFromText(rows *[]string) (decimal.Decimal, error) {
 	pattern, err := regexp.Compile(viper.GetString("statement.MAYBANK_2_CC.patterns.ending_balance"))
 
 	if err != nil {
@@ -55,7 +55,7 @@ func ExtractEndingBalanceFromText(rows []string) (decimal.Decimal, error) {
 
 	total := decimal.NewFromFloat(0)
 
-	for _, text := range rows {
+	for _, text := range *rows {
 
 		match := pattern.Match([]byte(text))
 
@@ -76,11 +76,11 @@ func ExtractEndingBalanceFromText(rows []string) (decimal.Decimal, error) {
 	return total, nil
 }
 
-func ExtractStatementDateFromText(rows []string) (string, error) {
+func ExtractStatementDateFromText(rows *[]string) (string, error) {
 
 	pattern := regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.statement_date"))
 
-	for _, text := range rows {
+	for _, text := range *rows {
 		match := pattern.FindString(text)
 		if match != "" {
 			return match, nil
@@ -90,7 +90,7 @@ func ExtractStatementDateFromText(rows []string) (string, error) {
 	return "", nil
 }
 
-func ExtractTransactionsFromText(rows []string, statement *common.Statement) ([]common.Transaction, error) {
+func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([]common.Transaction, error) {
 
 	transactions := []common.Transaction{}
 	pattern := regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.transaction"))
@@ -100,7 +100,7 @@ func ExtractTransactionsFromText(rows []string, statement *common.Statement) ([]
 	total_credit := decimal.Zero
 	balance := statement.StartingBalance
 
-	for _, text := range rows {
+	for _, text := range *rows {
 		match := pattern.FindStringSubmatch(text)
 
 		if len(match) == 0 {

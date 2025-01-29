@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"io"
 	"log"
 
 	"github.com/aqlanhadi/kwgn/extractor"
@@ -21,7 +20,7 @@ config and run the respective extraction pipeline.`,
 func handler(cmd *cobra.Command, args []string) {
     // Access the configuration using Viper
     target := viper.GetString("target")
-    log.SetOutput(io.Discard)
+    // log.SetOutput(io.Discard)
     log.Println("📂 Scanning ", target)
     extractor.ExecuteAgainstPath(target)
 }
