@@ -27,7 +27,7 @@ func Execute() {
 func init() {
     cobra.OnInitialize(initConfig)
     // rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "./.kwgn.yaml", "config file (default is $HOME/.kwgn.yaml)")
-    rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+    // rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 func initConfig() {
@@ -46,8 +46,8 @@ func initConfig() {
     viper.AutomaticEnv()
 
     if err := viper.ReadInConfig(); err == nil {
-        fmt.Println("Using config file:", viper.ConfigFileUsed())
-        fmt.Println("All settings:", viper.AllSettings())
+        // fmt.Println("Using config file:", viper.ConfigFileUsed())
+        // fmt.Println("All settings:", viper.AllSettings())
         // fmt.Println(viper.AllSettings())
     } else {
         fmt.Printf("Error reading config file: %v\n", err)
