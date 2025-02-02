@@ -1,6 +1,7 @@
 package mbb_2_cc
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -184,4 +185,30 @@ func ExtractTotalDebitFromText(text string) (float64, error) {
 
 func ExtractTotalCreditFromText(text string) (float64, error) {
 	return 0, nil
+}
+
+// TODO: move to singular check before processFile
+func ExtractAccountDetailsFromText(rows *[]string) (common.Account, error) {
+
+	// combine all rows to a string
+	text := strings.Join(*rows, "\n")
+	accounts := viper.Get("statement.MAYBANK_2_CC.accounts").([]interface{})
+
+	fmt.Println(text)
+	for _, account := range accounts {
+		accountMap := account.(map[string]interface{})
+        accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
+		
+		if accountRegex.Match([]byte(text)) {
+			fmt.Println("Found ", accountMap["name"].(string))
+			return common.Account{
+				AccountNumber: accountMap["number"].(string),
+				AccountType: accountMap["type"].(string),
+				AccountName: accountMap["name"].(string),
+				DebitCredit: accountMap["drcr"].(string),
+			}, nil
+		}
+	}
+	
+	panic("no account match")
 }
