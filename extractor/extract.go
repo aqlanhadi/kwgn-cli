@@ -30,6 +30,8 @@ func ExecuteAgainstPath(path string) {
 			statement := processFile(path + e.Name())
 			if len(statement.Transactions) > 0 {
 				result = append(result, statement)
+			} else {
+				
 			}
 		}
 
@@ -37,8 +39,16 @@ func ExecuteAgainstPath(path string) {
 		fmt.Println(string(as_json))
 	} else {
 		log.Println("📄 Scanning ", path)
-		processFile(path)
+		// processFile(path)
 		result := processFile(path)
+
+		if len(result.Transactions) < 1 {
+			emptyJSON := struct{}{}
+			jsonBytes, _ := json.Marshal(emptyJSON)
+			fmt.Println(string(jsonBytes)) // Outputs: {}
+			return
+		}
+
 		as_json, _ := json.Marshal(result)
 		fmt.Println(string(as_json))
 	}
@@ -47,7 +57,12 @@ func ExecuteAgainstPath(path string) {
 func processFile(filePath string) common.Statement {
 
 	// read file contents
-	rows, _ := common.ExtractRowsFromPDF(filePath)
+	rows, err := common.ExtractRowsFromPDF(filePath)
+
+	if (err != nil) || (len(*rows) < 1) {
+		return common.Statement{}
+	}
+
 	text := strings.Join(*rows, "\n")
 	accounts := viper.Get("accounts").([]interface{})
 

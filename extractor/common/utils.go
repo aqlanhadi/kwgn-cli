@@ -8,6 +8,7 @@ import (
 )
 
 type Statement struct {
+	Source 			string 			`json:"source"`
 	StartingBalance decimal.Decimal `json:"starting_balance"`
 	EndingBalance   decimal.Decimal `json:"ending_balance"`
 	StatementDate   time.Time       `json:"statement_date"`
