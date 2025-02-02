@@ -9,23 +9,15 @@ import (
 	"github.com/spf13/viper"
 )
 
-func Extract(path string) common.Statement {
-	text, err := common.ExtractRowsFromPDF(path)
-	if err != nil {
-		log.Fatal(err)
-	}
+func Extract(path string, rows *[]string) common.Statement {
 
-	account, _ := ExtractAccountDetailsFromText(text)
-	starting_balance, _ := ExtractStartingBalanceFromText(text)
-	ending_balance, _ := ExtractEndingBalanceFromText(text)
-	statement_date, _ := ExtractStatementDateFromText(text)
+	starting_balance, _ := ExtractStartingBalanceFromText(rows)
+	ending_balance, _ := ExtractEndingBalanceFromText(rows)
+	statement_date, _ := ExtractStatementDateFromText(rows)
 	statement_dt, _ := time.ParseInLocation(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.statement_format"), statement_date, time.Local)
-	// for _, row := range text {
-	// 	fmt.Println(row)
-	// }
+
 	statement := &common.Statement{
 		StartingBalance: starting_balance,
-		Account: account,
 		EndingBalance: ending_balance,
 		StatementDate: statement_dt,
 		Transactions: []common.Transaction{},
@@ -34,7 +26,7 @@ func Extract(path string) common.Statement {
 		Nett: decimal.Zero,
 	}
 
-	ExtractTransactionsFromText(text, statement)
+	ExtractTransactionsFromText(rows, statement)
 	log.Println("\t\t📅", "Statement Month Year:", statement.StatementDate, statement_date)
 
 	if statement.CalculatedEndingBalance.Cmp(ending_balance) == 0 {
@@ -42,10 +34,6 @@ func Extract(path string) common.Statement {
 	} else {
 		log.Println("\t\t❌", "Ending balance does not match the calculated ending balance")
 	}
-
-	// for _, transaction := range statement.Transactions {
-	// 	fmt.Println(transaction)
-	// }
 	
 	return *statement
 }

@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/aqlanhadi/kwgn/extractor/common"
 	"github.com/aqlanhadi/kwgn/extractor/mbb_2_cc"
 	"github.com/aqlanhadi/kwgn/extractor/mbb_mae_and_casa"
+	"github.com/spf13/viper"
 )
 
 func ExecuteAgainstPath(path string) {
@@ -42,14 +45,39 @@ func ExecuteAgainstPath(path string) {
 }
 
 func processFile(filePath string) common.Statement {
-	if match, err := mbb_mae_and_casa.Match(filePath); err == nil && match {
-		log.Println("\t📄 Extracting MBB_MAE transactions from ", filePath)
-		// Call the appropriate extraction function here
-		return mbb_mae_and_casa.Extract(filePath)
-	}
-	if match, err := mbb_2_cc.Match(filePath); err == nil && match {
-		log.Println("\t📄 Extracting MBB2CC transactions from ", filePath)
-		return mbb_2_cc.Extract(filePath)
+
+	// read file contents
+	rows, _ := common.ExtractRowsFromPDF(filePath)
+	text := strings.Join(*rows, "\n")
+	accounts := viper.Get("accounts").([]interface{})
+
+	// loop accounts to find match
+	for _, acc := range accounts {
+		accountMap := acc.(map[string]interface{})
+        accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
+		
+		if accountRegex.Match([]byte(text)) {
+			account := common.Account{
+				AccountNumber: accountMap["number"].(string),
+				AccountType: accountMap["type"].(string),
+				AccountName: accountMap["name"].(string),
+				DebitCredit: accountMap["drcr"].(string),
+			}
+
+			// process based on statement
+			switch accountMap["statement_config"].(string) {
+			case "MAYBANK_CASA_AND_MAE":
+				log.Println("\t📄 Extracting MBB_MAE transactions from ", filePath)
+				statement := mbb_mae_and_casa.Extract(filePath, rows)
+				statement.Account = account
+				return statement
+			case "MAYBANK_2_CC":
+				log.Println("\t📄 Extracting MBB2CC transactions from ", filePath)
+				statement := mbb_2_cc.Extract(filePath, rows)
+				statement.Account = account
+				return statement
+			}
+		}
 	}
 
 	return common.Statement{}

@@ -1,27 +1,36 @@
 target: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/
 output: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/Output/
+accounts:
+  - savings:
+    regex_identifier: 162107-230494\s*ACCOUNT\s*NUMBER
+    statement_config: MAYBANK_CASA_AND_MAE
+    name: MAYBANK_PERSONAL_SAVER_I
+    type: savings
+    number: "162107230494"
+    drcr: debit
+  - salary:
+    regex_identifier: 114013-315457\s*SELANGOR\s*ACCOUNT\s*NUMBER
+    statement_config: MAYBANK_CASA_AND_MAE
+    name: MAYBANK_SAVINGS_I
+    type: salary
+    number: "114013315457"
+    drcr: debit
+  - mae:
+    regex_identifier: 514169996465\s*ACCOUNT\s*NUMBER\s*MAE
+    statement_config: MAYBANK_CASA_AND_MAE
+    name: MAYBANK_MAE
+    type: wallet
+    number: "514169996465"
+    drcr: debit
+  - maybank_cc:
+    regex_identifier: PENYATA AKAUN KAD KREDIT\s*Malayan Banking Berhad \(3813-K\)
+    statement_config: MAYBANK_2_CC
+    name: MAYBANK_2_CC
+    type: credit_card
+    number: ""
+    drcr: credit
 statement: 
   MAYBANK_CASA_AND_MAE:
-    file_regex_pattern: .*5141.*|.*1621.*|.*1140.*
-    accounts:
-      - savings:
-        regex_identifier: 162107-230494\s*ACCOUNT\s*NUMBER
-        name: MAYBANK_PERSONAL_SAVER_I
-        type: savings
-        number: "162107230494"
-        drcr: debit
-      - salary:
-        regex_identifier: 114013-315457\s*SELANGOR\s*ACCOUNT\s*NUMBER
-        name: MAYBANK_SAVINGS_I
-        type: salary
-        number: "114013315457"
-        drcr: debit
-      - mae:
-        regex_identifier: 514169996465\s*ACCOUNT\s*NUMBER\s*MAE
-        name: MAYBANK_MAE
-        type: wallet
-        number: "514169996465"
-        drcr: debit
     patterns:
       starting_balance: BEGINNING BALANCE\s*([\d,]+\.\d+)
       ending_balance: ENDING BALANCE\s*:\s*([\d,]+\.\d+)
@@ -36,14 +45,6 @@ statement:
       balance_debit_suffix: DR
       date_format: "_2/1"
   MAYBANK_2_CC:
-    file_regex_pattern: .*0398121207523300.*
-    accounts:
-      - maybank_cc:
-        regex_identifier: PENYATA AKAUN KAD KREDIT\s*Malayan Banking Berhad \(3813-K\)
-        name: MAYBANK_CREDIT_CARDS
-        type: credit_card
-        number: ""
-        drcr: credit
     patterns:
       credit_suffix: CR
       starting_balance: YOUR PREVIOUS STATEMENT BALANCE\s*([\d,]+\.\d+(?:CR)?)
@@ -56,4 +57,3 @@ statement:
       statement_format: "_2 Jan 06"
       date_format: "_2/1"
   TNG_WEB:
-    file_regex_pattern: .*TNG.*

@@ -12,16 +12,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-func Match(fileName string) (bool, error) {
-	mbb_2_cc, err := regexp.Compile(viper.GetString("statement.MAYBANK_2_CC.file_regex_pattern"))
-	
-	if err != nil {
-		return false, err
-	}
-
-	return mbb_2_cc.Match([]byte(fileName)), nil
-}
-
 func ExtractStartingBalanceFromText(rows *[]string) (decimal.Decimal, error) {
 	pattern := regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.starting_balance"))
 
