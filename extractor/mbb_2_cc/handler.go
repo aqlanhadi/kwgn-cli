@@ -160,7 +160,6 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 }
 
 func OrderTransactionsByDate(transactions *[]common.Transaction) {
-	// slices.SortFunc(transactions, func(a, b T) int { return a.date.Compare(b.date) })
 	slices.SortFunc(*transactions, func(a, b common.Transaction) int { return a.Date.Compare(b.Date) })
 }
 
