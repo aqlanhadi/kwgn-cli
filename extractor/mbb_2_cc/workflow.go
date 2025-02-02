@@ -16,6 +16,8 @@ func Extract(path string) common.Statement {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	account, _ := ExtractAccountDetailsFromText(text)
 	starting_balance, _ := ExtractStartingBalanceFromText(text)
 	ending_balance, _ := ExtractEndingBalanceFromText(text)
 	statement_date, _ := ExtractStatementDateFromText(text)
@@ -24,6 +26,7 @@ func Extract(path string) common.Statement {
 
 	statement := common.Statement{
 		StartingBalance: starting_balance,
+		Account: account,
 		EndingBalance: ending_balance,
 		StatementDate: statement_dt,
 		Transactions: []common.Transaction{},

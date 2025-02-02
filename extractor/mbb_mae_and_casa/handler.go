@@ -1,6 +1,7 @@
 package mbb_mae_and_casa
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -192,4 +193,30 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 	statement.CalculatedEndingBalance = balance
 
 	return transactions, nil
+}
+
+// TODO: move to singular check before processFile
+func ExtractAccountDetailsFromText(rows *[]string) (common.Account, error) {
+
+	// combine all rows to a string
+	text := strings.Join(*rows, "\n")
+	accounts := viper.Get("statement.MAYBANK_CASA_AND_MAE.accounts").([]interface{})
+
+	fmt.Println(text)
+	for _, account := range accounts {
+		accountMap := account.(map[string]interface{})
+        accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
+		
+		if accountRegex.Match([]byte(text)) {
+			fmt.Println("Found ", accountMap["name"].(string))
+			return common.Account{
+				AccountNumber: accountMap["number"].(string),
+				AccountType: accountMap["type"].(string),
+				AccountName: accountMap["name"].(string),
+				DebitCredit: accountMap["drcr"].(string),
+			}, nil
+		}
+	}
+	
+	panic("no account match")
 }
