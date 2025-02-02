@@ -29,3 +29,5 @@ statement:
       timezone: Asia/Kuala_Lumpur
       statement_format: "_2 Jan 06"
       date_format: "_2/1"
+  TNG_WEB:
+    file_regex_pattern: .*TNG.*
