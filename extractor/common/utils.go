@@ -11,6 +11,7 @@ type Statement struct {
 	StartingBalance decimal.Decimal `json:"starting_balance"`
 	EndingBalance   decimal.Decimal `json:"ending_balance"`
 	StatementDate   time.Time       `json:"statement_date"`
+	Account		 	Account         `json:"account"`
 	Transactions    []Transaction   `json:"transactions"`
 	TotalCredit     decimal.Decimal `json:"total_credit"`
 	TotalDebit      decimal.Decimal `json:"total_debit"`
@@ -22,6 +23,7 @@ type Account struct {
 	AccountNumber string `json:"account_number"`
 	AccountName   string `json:"account_name"`
 	AccountType   string `json:"account_type"`
+	DebitCredit   string `json:"debit_credit"`
 }
 
 type Transaction struct {

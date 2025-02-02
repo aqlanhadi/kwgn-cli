@@ -34,6 +34,9 @@ func Extract(path string) common.Statement {
 
 	ExtractTransactionsFromText(text, &statement)
 
+	OrderTransactionsByDate(&statement.Transactions)
+	RecalculateBalances(&statement)
+	
 	log.Println("\t\t📅", "Statement Month Year:", statement.StatementDate.Month(), statement.StatementDate.Year())
 
 	if statement.CalculatedEndingBalance.Cmp(ending_balance) == 0 {

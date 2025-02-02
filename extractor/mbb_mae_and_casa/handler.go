@@ -143,14 +143,15 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 
 			stripped_amount := regexp.MustCompile(`[^0-9.]`).ReplaceAllString(match[3], "")
 			amount := decimal.RequireFromString(stripped_amount)
-
+			var drcr string
 			// If transaction is debit, convert to negative
 			if strings.HasSuffix(strings.TrimSpace(match[3]), viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.amount_debit_suffix")) {
 				amount = amount.Neg()
 				total_debit = total_debit.Add(amount)
-
+				drcr = "debit"
 			} else {
 				total_credit = total_credit.Add(amount)
+				drcr = "credit"
 			}
 
 			balance = balance.Add(amount)
@@ -165,7 +166,7 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 				Sequence: sequence,
 				Date: date,
 				Descriptions: []string{initialDescription},
-				Type: "",
+				Type: drcr,
 				Amount: amount,
 				Balance: balance,
 			}

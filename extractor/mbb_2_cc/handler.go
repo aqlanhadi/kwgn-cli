@@ -2,6 +2,7 @@ package mbb_2_cc
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -122,14 +123,17 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 			date = time.Date(transaction_year, date.Month(), date.Day(), 0, 0, 0, 0, time.Local)
 		}
 
+		var drcr string
 		stripped := regexp.MustCompile(`[^0-9.]`).ReplaceAllString(match[4], "")
 		amount, _ := decimal.NewFromString(stripped)
 		// If transaction is credit, convert to negative
 		if strings.HasSuffix(strings.TrimSpace(match[4]), viper.GetString("statement.MAYBANK_2_CC.patterns.credit_suffix")) {
 			amount = amount.Neg()
 			total_credit = total_credit.Add(amount)
+			drcr = "credit"
 		} else {
 			total_debit = total_debit.Add(amount)
+			drcr = "debit"
 		}
 
 		balance = balance.Add(amount)
@@ -140,7 +144,7 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 			Sequence:     sequence,
 			Date:         date,
 			Descriptions: []string{match[3]},
-			Type:         "",
+			Type:         drcr,
 			Amount:       amount,
 			Balance:      balance,
 		})
@@ -155,6 +159,25 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 	return transactions, nil
 }
 
+func OrderTransactionsByDate(transactions *[]common.Transaction) {
+	// slices.SortFunc(transactions, func(a, b T) int { return a.date.Compare(b.date) })
+	slices.SortFunc(*transactions, func(a, b common.Transaction) int { return a.Date.Compare(b.Date) })
+}
+
+func RecalculateBalances(statement *common.Statement) {
+	transactions := statement.Transactions
+	balance := statement.StartingBalance
+
+	for i, transaction := range transactions {
+		if i == 0 {
+			transactions[i].Balance = balance.Add(transaction.Amount)
+		} else {
+			transactions[i].Balance = transactions[i-1].Balance.Add(transaction.Amount)
+		}
+	}
+
+	statement.CalculatedEndingBalance = transactions[len(transactions)-1].Balance
+}
 
 func ExtractTotalDebitFromText(text string) (float64, error) {
 	return 0, nil

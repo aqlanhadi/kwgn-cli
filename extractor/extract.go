@@ -1,6 +1,8 @@
 package extractor
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 
@@ -28,15 +30,14 @@ func ExecuteAgainstPath(path string) {
 			}
 		}
 
-		// as_json, _ := json.Marshal(result)
-
-		// fmt.Println(string(as_json))
+		as_json, _ := json.Marshal(result)
+		fmt.Println(string(as_json))
 	} else {
 		log.Println("📄 Scanning ", path)
 		processFile(path)
-		// result := processFile(path)
-		// as_json, _ := json.Marshal(result)
-		// fmt.Println(string(as_json))
+		result := processFile(path)
+		as_json, _ := json.Marshal(result)
+		fmt.Println(string(as_json))
 	}
 }
 
