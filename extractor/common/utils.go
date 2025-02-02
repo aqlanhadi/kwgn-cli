@@ -18,6 +18,12 @@ type Statement struct {
 	CalculatedEndingBalance decimal.Decimal `json:"calculated_ending_balance"`
 }
 
+type Account struct {
+	AccountNumber string `json:"account_number"`
+	AccountName   string `json:"account_name"`
+	AccountType   string `json:"account_type"`
+}
+
 type Transaction struct {
     Sequence     int             `json:"sequence"`
     Date         time.Time       `json:"date"`
@@ -52,9 +58,5 @@ func ExtractRowsFromPDF(path string) (*[]string, error) {
 		}
 	}
 
-	// fmt.Println("Extracted rows: ", extracted_rows)
-
 	return &extracted_rows, nil
-    // buf.ReadFrom(b)
-	// return buf.String(), nil
 }
