@@ -11,22 +11,15 @@ import (
 
 
 
-func Extract(path string) common.Statement {
-	text, err := common.ExtractRowsFromPDF(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	account, _ := ExtractAccountDetailsFromText(text)
-	starting_balance, _ := ExtractStartingBalanceFromText(text)
-	ending_balance, _ := ExtractEndingBalanceFromText(text)
-	statement_date, _ := ExtractStatementDateFromText(text)
+func Extract(path string, rows *[]string) common.Statement {
+	starting_balance, _ := ExtractStartingBalanceFromText(rows)
+	ending_balance, _ := ExtractEndingBalanceFromText(rows)
+	statement_date, _ := ExtractStatementDateFromText(rows)
 
 	statement_dt, _ := time.ParseInLocation(viper.GetString("statement.MAYBANK_2_CC.patterns.statement_format"), statement_date, time.Local)
 
 	statement := common.Statement{
 		StartingBalance: starting_balance,
-		Account: account,
 		EndingBalance: ending_balance,
 		StatementDate: statement_dt,
 		Transactions: []common.Transaction{},
@@ -35,7 +28,7 @@ func Extract(path string) common.Statement {
 		Nett: decimal.Zero,
 	}
 
-	ExtractTransactionsFromText(text, &statement)
+	ExtractTransactionsFromText(rows, &statement)
 
 	OrderTransactionsByDate(&statement.Transactions)
 	RecalculateBalances(&statement)
