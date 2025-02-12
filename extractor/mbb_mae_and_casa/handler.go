@@ -119,7 +119,14 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 			sequence++
 			// Extract details from regex
 			match := mainTransactionRegex.FindStringSubmatch(line)
-			date, _ := time.ParseInLocation(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.date_format"), match[1], time.Local)
+
+			datePattern := strings.Split(match[1], "/")
+			dateParseLayout := viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.date_format")
+			if len(datePattern) == 2 {
+				splittedDateFormat := strings.Split(dateParseLayout, "/")
+				dateParseLayout = strings.Join(splittedDateFormat[:2], "/")
+			}
+			date, _ := time.ParseInLocation(dateParseLayout, match[1], time.Local)
 			// Complete Date
 			if date.Year() != statement.StatementDate.Year() {
 
