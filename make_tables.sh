@@ -1,11 +1,12 @@
 #!/bin/bash
 # Database connection settings (adjust as needed)
-DB_NAME="your_database_name"
-DB_USER="your_username"
+DB_NAME="kewangan_v2"
+DB_USER="postgres"
+DB_PASS="postgres"
 DB_HOST="localhost"
 DB_PORT="5432"
 
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" << 'EOF'
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -W "$DB_PASS" -d "$DB_NAME" << 'EOF'
 -- Create the accounts table
 CREATE TABLE IF NOT EXISTS accounts (
     number VARCHAR(255) NOT NULL PRIMARY KEY,
@@ -37,6 +38,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     type VARCHAR(255) NOT NULL,
     amount NUMERIC(15,2),
     balance NUMERIC(15,2),
+    tags TEXT[],
     FOREIGN KEY(source) REFERENCES statements(source)
 );
 

@@ -1,6 +1,8 @@
 package common
 
 import (
+	"log"
+	"strings"
 	"time"
 
 	"github.com/dslipak/pdf"
@@ -38,26 +40,38 @@ type Transaction struct {
 
 func ExtractRowsFromPDF(path string) (*[]string, error) {
 	r, err := pdf.Open(path)
-	// remember close file
 	if err != nil {
 		return nil, err
 	}
 
-	extracted_rows := []string{}
+	// Pre-allocate slice with estimated capacity
+	numPages := r.NumPage()
+	estimatedRows := numPages * 100 // Assume average 100 rows per page
+	extracted_rows := make([]string, 0, estimatedRows)
 	
-	for no := 1; no <= r.NumPage(); no++ { // Loop over each page.
+	for no := 1; no <= numPages; no++ {
 		page := r.Page(no)
-		rows, _ := page.GetTextByRow()
-		for _, row := range rows { // Loop over each row of text in the page.
+		rows, err := page.GetTextByRow()
+		if err != nil {
+			log.Printf("Warning: error getting text from page %d: %v", no, err)
+			continue
+		}
 
-			// concatenate all text in the row
-			var rowText string
-			for _, text := range row.Content {
-				rowText += text.S + " "
+		for _, row := range rows {
+			// Use strings.Builder for efficient string concatenation
+			var builder strings.Builder
+			builder.Grow(len(row.Content) * 20) // Pre-allocate assuming average 20 chars per content
+
+			for i, text := range row.Content {
+				builder.WriteString(text.S)
+				if i < len(row.Content)-1 {
+					builder.WriteByte(' ')
+				}
 			}
 
-			// fmt.Println("Page", no, "Row", ri, "Text", rowText)
-			extracted_rows = append(extracted_rows, rowText)
+			if builder.Len() > 0 {
+				extracted_rows = append(extracted_rows, builder.String())
+			}
 		}
 	}
 
