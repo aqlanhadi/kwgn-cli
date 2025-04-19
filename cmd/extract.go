@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"io"
 	"log"
 
 	"github.com/aqlanhadi/kwgn/extractor"
@@ -21,16 +20,22 @@ config and run the respective extraction pipeline.`,
 func handler(cmd *cobra.Command, args []string) {
     // Access the configuration using Viper
     target := viper.GetString("target")
-    log.SetOutput(io.Discard)
     log.Println("📂 Scanning ", target)
     extractor.ExecuteAgainstPath(target)
 }
 
 func init() {
     rootCmd.AddCommand(extractCmd)
+    
+    // Add flags to extract command
     extractCmd.Flags().StringP("folder", "f", ".", "Folder in which kwgn will scan for files")
-    extractCmd.MarkFlagRequired("folder")
+    extractCmd.Flags().StringP("config", "c", "", "Config file path (default is ./.kwgn.yaml)")
     extractCmd.Flags().StringP("output", "o", ".", "Folder in which kwgn will save the extracted data")
+    
+    extractCmd.MarkFlagRequired("folder")
+    
+    // Bind flags to viper
     viper.BindPFlag("target", extractCmd.Flags().Lookup("folder"))
+    viper.BindPFlag("config", extractCmd.Flags().Lookup("config"))
     viper.BindPFlag("output", extractCmd.Flags().Lookup("output"))
 }
