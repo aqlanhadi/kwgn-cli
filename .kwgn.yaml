@@ -29,6 +29,13 @@ accounts:
     type: cards
     number: "03981212"
     drcr: credit
+  - tng:
+    regex_identifier: TNG WALLET TRANSACTION HISTORY
+    statement_config: TNG
+    name: TNG
+    type: cash
+    number: "TNG_981212"
+    drcr: debit
 statement: 
   MAYBANK_CASA_AND_MAE:
     patterns:
@@ -56,4 +63,6 @@ statement:
       timezone: Asia/Kuala_Lumpur
       statement_format: "_2 Jan 06"
       date_format: "_2/1"
-  TNG_WEB:
+  TNG:
+    patterns:
+      transaction: "([A-Za-z: &-]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})\s+(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s+"

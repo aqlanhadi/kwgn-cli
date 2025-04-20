@@ -12,6 +12,7 @@ import (
 	"github.com/aqlanhadi/kwgn/extractor/common"
 	"github.com/aqlanhadi/kwgn/extractor/mbb_2_cc"
 	"github.com/aqlanhadi/kwgn/extractor/mbb_mae_and_casa"
+	"github.com/aqlanhadi/kwgn/extractor/tng"
 	"github.com/spf13/viper"
 )
 
@@ -107,6 +108,12 @@ func processFile(filePath string) common.Statement {
 			case "MAYBANK_2_CC":
 				log.Printf("Processing as MAYBANK_2_CC statement")
 				statement := mbb_2_cc.Extract(filePath, rows)
+				statement.Account = account
+				log.Printf("Statement processing completed (took %v)", time.Since(processStartTime))
+				return statement
+			case "TNG":
+				log.Printf("Processing as TNG statement")
+				statement := tng.Extract(filePath, rows)
 				statement.Account = account
 				log.Printf("Statement processing completed (took %v)", time.Since(processStartTime))
 				return statement
