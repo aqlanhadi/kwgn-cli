@@ -36,6 +36,7 @@ type Transaction struct {
     Type         string          `json:"type"`
     Amount       decimal.Decimal `json:"amount"`
     Balance      decimal.Decimal `json:"balance"`
+	Reference    string          `json:"ref"`
 }
 
 func ExtractRowsFromPDF(path string) (*[]string, error) {

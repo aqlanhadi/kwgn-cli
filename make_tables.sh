@@ -39,7 +39,9 @@ CREATE TABLE IF NOT EXISTS transactions (
     amount NUMERIC(15,2),
     balance NUMERIC(15,2),
     tags TEXT[],
+    ref VARCHAR(255) UNIQUE,
     FOREIGN KEY(source) REFERENCES statements(source)
+    
 );
 
 -- Conditionally add the unique constraint to transactions
