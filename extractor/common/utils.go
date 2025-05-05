@@ -10,15 +10,16 @@ import (
 )
 
 type Statement struct {
-	Source 			string 			`json:"source"`
-	StartingBalance decimal.Decimal `json:"starting_balance"`
-	EndingBalance   decimal.Decimal `json:"ending_balance"`
-	StatementDate   time.Time       `json:"statement_date"`
-	Account		 	Account         `json:"account"`
-	Transactions    []Transaction   `json:"transactions"`
-	TotalCredit     decimal.Decimal `json:"total_credit"`
-	TotalDebit      decimal.Decimal `json:"total_debit"`
-	Nett            decimal.Decimal `json:"nett"`
+	Source                  string          `json:"source"`
+	StartingBalance         decimal.Decimal `json:"starting_balance,omitempty"`
+	EndingBalance           decimal.Decimal `json:"ending_balance,omitempty"`
+	StatementDate           *time.Time      `json:"statement_date,omitempty"`
+	Account                 Account         `json:"account"`
+	Transactions            []Transaction   `json:"transactions"`
+	TotalCredit             decimal.Decimal `json:"total_credit"`
+	TotalDebit              decimal.Decimal `json:"total_debit"`
+	Nett                    decimal.Decimal `json:"nett"`
+	TransactionsRange       string          `json:"transactions_range,omitempty"`
 	CalculatedEndingBalance decimal.Decimal `json:"calculated_ending_balance"`
 }
 
@@ -27,15 +28,16 @@ type Account struct {
 	AccountName   string `json:"account_name"`
 	AccountType   string `json:"account_type"`
 	DebitCredit   string `json:"debit_credit"`
+	Reconciliable bool   `json:"reconciliable"`
 }
 
 type Transaction struct {
-    Sequence     int             `json:"sequence"`
-    Date         time.Time       `json:"date"`
-    Descriptions []string        `json:"descriptions"`
-    Type         string          `json:"type"`
-    Amount       decimal.Decimal `json:"amount"`
-    Balance      decimal.Decimal `json:"balance"`
+	Sequence     int             `json:"sequence"`
+	Date         time.Time       `json:"date"`
+	Descriptions []string        `json:"descriptions"`
+	Type         string          `json:"type"`
+	Amount       decimal.Decimal `json:"amount"`
+	Balance      decimal.Decimal `json:"balance"`
 	Reference    string          `json:"ref"`
 }
 
@@ -49,7 +51,7 @@ func ExtractRowsFromPDF(path string) (*[]string, error) {
 	numPages := r.NumPage()
 	estimatedRows := numPages * 100 // Assume average 100 rows per page
 	extracted_rows := make([]string, 0, estimatedRows)
-	
+
 	for no := 1; no <= numPages; no++ {
 		page := r.Page(no)
 		rows, err := page.GetTextByRow()
