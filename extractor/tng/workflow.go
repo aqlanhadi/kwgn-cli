@@ -1,7 +1,9 @@
 package tng
 
 import (
+	"fmt"
 	"log"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -21,7 +23,9 @@ func Extract(path string, rows *[]string) common.Statement {
 
 	var total_debit decimal.Decimal
 	var total_credit decimal.Decimal
-	var sequence_counter int = 1 // Initialize sequence counter
+	var sequence_counter int = 1
+	var minDate, maxDate time.Time
+	firstDateSet := false
 
 	for _, row := range *pages {
 		match := regexp.MustCompile(viper.GetString("statement.TNG.patterns.transaction"))
@@ -41,6 +45,21 @@ func Extract(path string, rows *[]string) common.Statement {
 			if err != nil {
 				log.Fatal(err)
 			}
+
+			// Update min/max dates
+			if !firstDateSet {
+				minDate = dateTime
+				maxDate = dateTime
+				firstDateSet = true
+			} else {
+				if dateTime.Before(minDate) {
+					minDate = dateTime
+				}
+				if dateTime.After(maxDate) {
+					maxDate = dateTime
+				}
+			}
+
 			amount_numbers_pattern := regexp.MustCompile(viper.GetString("statement.TNG.patterns.amount_numbers_pattern"))
 			amount_numbers_match := amount_numbers_pattern.FindAllStringSubmatch(s[7], -1)
 			amount_sign := amount_numbers_match[0][1]
@@ -59,21 +78,28 @@ func Extract(path string, rows *[]string) common.Statement {
 			}
 
 			transactions = append(transactions, common.Transaction{
-				Sequence:     sequence_counter, // Use the counter
+				Sequence:     sequence_counter,
 				Date:         dateTime,
 				Descriptions: []string{description, s[4]},
 				Type:         tx_type,
 				Amount:       amount_decimal,
 				Reference:    s[5],
 			})
-			sequence_counter++ // Increment the counter
+			sequence_counter++
 		}
 	}
 
+	var dateRangeStr string
+	if firstDateSet {
+		dateRangeStr = fmt.Sprintf("%s - %s", minDate.Format(time.RFC3339), maxDate.Format(time.RFC3339))
+	}
+
 	return common.Statement{
-		Transactions: transactions,
-		TotalDebit:   total_debit,
-		TotalCredit:  total_credit,
-		Nett:         total_debit.Add(total_credit),
+		Source:            strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+		TransactionsRange: dateRangeStr,
+		Transactions:      transactions,
+		TotalDebit:        total_debit,
+		TotalCredit:       total_credit,
+		Nett:              total_debit.Add(total_credit),
 	}
 }
