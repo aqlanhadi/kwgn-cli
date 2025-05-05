@@ -13,10 +13,24 @@ import (
 	"github.com/aqlanhadi/kwgn/extractor/mbb_2_cc"
 	"github.com/aqlanhadi/kwgn/extractor/mbb_mae_and_casa"
 	"github.com/aqlanhadi/kwgn/extractor/tng"
+	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 )
 
-func ExecuteAgainstPath(path string, transactionOnly bool) {
+// Helper struct to marshal statement details without transactions
+type StatementWithoutTransactions struct {
+	Source                  string          `json:"source"`
+	StartingBalance         decimal.Decimal `json:"starting_balance"`
+	EndingBalance           decimal.Decimal `json:"ending_balance"`
+	StatementDate           time.Time       `json:"statement_date"`
+	Account                 common.Account  `json:"account"`
+	TotalCredit             decimal.Decimal `json:"total_credit"`
+	TotalDebit              decimal.Decimal `json:"total_debit"`
+	Nett                    decimal.Decimal `json:"nett"`
+	CalculatedEndingBalance decimal.Decimal `json:"calculated_ending_balance"`
+}
+
+func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool) {
 	startTime := time.Now()
 	defer func() {
 		log.Printf("Total execution time: %v", time.Since(startTime))
@@ -49,11 +63,27 @@ func ExecuteAgainstPath(path string, transactionOnly bool) {
 				transactionList = append(transactionList, stmt.Transactions...)
 			}
 			output = transactionList
+		} else if statementOnly {
+			statementList := []StatementWithoutTransactions{}
+			for _, stmt := range result {
+				statementList = append(statementList, StatementWithoutTransactions{
+					Source:                  stmt.Source,
+					StartingBalance:         stmt.StartingBalance,
+					EndingBalance:           stmt.EndingBalance,
+					StatementDate:           stmt.StatementDate,
+					Account:                 stmt.Account,
+					TotalCredit:             stmt.TotalCredit,
+					TotalDebit:              stmt.TotalDebit,
+					Nett:                    stmt.Nett,
+					CalculatedEndingBalance: stmt.CalculatedEndingBalance,
+				})
+			}
+			output = statementList
 		} else {
 			output = result
 		}
 
-		as_json, _ := json.Marshal(output)
+		as_json, _ := json.MarshalIndent(output, "", "  ")
 		fmt.Println(string(as_json))
 	} else {
 		log.Printf("Processing single file: %s", path)
@@ -63,7 +93,7 @@ func ExecuteAgainstPath(path string, transactionOnly bool) {
 		if len(result.Transactions) < 1 {
 			log.Printf("No transactions found in %s (took %v)", path, time.Since(fileStartTime))
 			emptyJSON := struct{}{}
-			jsonBytes, _ := json.Marshal(emptyJSON)
+			jsonBytes, _ := json.MarshalIndent(emptyJSON, "", "  ")
 			fmt.Println(string(jsonBytes))
 			return
 		}
@@ -73,11 +103,23 @@ func ExecuteAgainstPath(path string, transactionOnly bool) {
 		var output interface{}
 		if transactionOnly {
 			output = result.Transactions
+		} else if statementOnly {
+			output = StatementWithoutTransactions{
+				Source:                  result.Source,
+				StartingBalance:         result.StartingBalance,
+				EndingBalance:           result.EndingBalance,
+				StatementDate:           result.StatementDate,
+				Account:                 result.Account,
+				TotalCredit:             result.TotalCredit,
+				TotalDebit:              result.TotalDebit,
+				Nett:                    result.Nett,
+				CalculatedEndingBalance: result.CalculatedEndingBalance,
+			}
 		} else {
 			output = result
 		}
 
-		as_json, _ := json.Marshal(output)
+		as_json, _ := json.MarshalIndent(output, "", "  ")
 		fmt.Println(string(as_json))
 	}
 }

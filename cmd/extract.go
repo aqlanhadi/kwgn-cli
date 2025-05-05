@@ -16,13 +16,19 @@ var (
 		Run:   handler,
 	}
 	transactionOnly bool
+	statementOnly   bool
 )
 
 func handler(cmd *cobra.Command, args []string) {
+	// Check for mutually exclusive flags
+	if transactionOnly && statementOnly {
+		log.Fatal("Error: --transaction-only and --statement-only flags are mutually exclusive")
+	}
+
 	// Access the configuration using Viper
 	target := viper.GetString("target")
 	log.Println("📂 Scanning ", target)
-	extractor.ExecuteAgainstPath(target, transactionOnly)
+	extractor.ExecuteAgainstPath(target, transactionOnly, statementOnly)
 }
 
 func init() {
@@ -33,6 +39,7 @@ func init() {
 	extractCmd.Flags().StringP("config", "c", "", "Config file path (default is ./.kwgn.yaml)")
 	extractCmd.Flags().StringP("output", "o", ".", "Folder in which kwgn will save the extracted data")
 	extractCmd.Flags().BoolVar(&transactionOnly, "transaction-only", false, "Print only transaction statements")
+	extractCmd.Flags().BoolVar(&statementOnly, "statement-only", false, "Print only statement details (excluding transactions)")
 
 	extractCmd.MarkFlagRequired("folder")
 
@@ -41,4 +48,5 @@ func init() {
 	viper.BindPFlag("config", extractCmd.Flags().Lookup("config"))
 	viper.BindPFlag("output", extractCmd.Flags().Lookup("output"))
 	viper.BindPFlag("transaction_only", extractCmd.Flags().Lookup("transaction-only"))
+	viper.BindPFlag("statement_only", extractCmd.Flags().Lookup("statement-only"))
 }
