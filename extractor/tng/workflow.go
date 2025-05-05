@@ -1,11 +1,14 @@
 package tng
 
 import (
-	"fmt"
 	"log"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/aqlanhadi/kwgn/extractor/common"
+	"github.com/shopspring/decimal"
+	"github.com/spf13/viper"
 )
 
 func Extract(path string, rows *[]string) common.Statement {
@@ -14,20 +17,63 @@ func Extract(path string, rows *[]string) common.Statement {
 		log.Fatal(err)
 	}
 
-	// this becomes pages tho
+	transactions := []common.Transaction{}
+
+	var total_debit decimal.Decimal
+	var total_credit decimal.Decimal
+	var sequence_counter int = 1 // Initialize sequence counter
 
 	for _, row := range *pages {
-		// fmt.Println("--------------------------------")
-		// fmt.Println(row)
-		// split by 5 spaces
-		split := strings.Split(row, "     ")
-		// fmt.Println(split)
+		match := regexp.MustCompile(viper.GetString("statement.TNG.patterns.transaction"))
+		matches := match.FindAllStringSubmatch(row, -1)
 
-		// ([A-Za-z: &-]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})\s+(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s+
-		for _, s := range split {
-			fmt.Println(s)
+		for _, s := range matches {
+			description := strings.TrimSpace(s[1])
+			description = strings.ReplaceAll(description, "  ", " ")
+			date := s[2]
+			time_str := s[3]
+			// convert date to time.Time
+			loc, err := time.LoadLocation("Asia/Kuala_Lumpur")
+			if err != nil {
+				log.Fatal(err)
+			}
+			dateTime, err := time.ParseInLocation(viper.GetString("statement.TNG.patterns.transaction_date"), date+" "+time_str, loc)
+			if err != nil {
+				log.Fatal(err)
+			}
+			amount_numbers_pattern := regexp.MustCompile(viper.GetString("statement.TNG.patterns.amount_numbers_pattern"))
+			amount_numbers_match := amount_numbers_pattern.FindAllStringSubmatch(s[7], -1)
+			amount_sign := amount_numbers_match[0][1]
+
+			amount := amount_numbers_match[0][2]
+			amount_decimal, _ := decimal.NewFromString(amount_sign + amount)
+
+			var tx_type string
+
+			if amount_sign == viper.GetString("statement.TNG.patterns.debit_suffix") {
+				tx_type = "debit"
+				total_debit = total_debit.Add(amount_decimal)
+			} else {
+				tx_type = "credit"
+				total_credit = total_credit.Add(amount_decimal)
+			}
+
+			transactions = append(transactions, common.Transaction{
+				Sequence:     sequence_counter, // Use the counter
+				Date:         dateTime,
+				Descriptions: []string{description, s[4]},
+				Type:         tx_type,
+				Amount:       amount_decimal,
+				Reference:    s[5],
+			})
+			sequence_counter++ // Increment the counter
 		}
 	}
 
-	return common.Statement{}
+	return common.Statement{
+		Transactions: transactions,
+		TotalDebit:   total_debit,
+		TotalCredit:  total_credit,
+		Nett:         total_debit.Add(total_credit),
+	}
 }

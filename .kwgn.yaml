@@ -1,5 +1,5 @@
 target: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/
-output: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/Output/
+output: /Users/aqlan/Developer/kwgn-cli
 accounts:
   - savings:
     regex_identifier: 222222-222222\s*ACCOUNT\s*NUMBER
@@ -8,6 +8,7 @@ accounts:
     type: cash
     number: "222222222222"
     drcr: debit
+    reconciliable: true
   - salary:
     regex_identifier: 111111-111111\s*SELANGOR\s*ACCOUNT\s*NUMBER
     statement_config: MAYBANK_CASA_AND_MAE
@@ -15,6 +16,7 @@ accounts:
     type: cash
     number: "111111111111"
     drcr: debit
+    reconciliable: true
   - mae:
     regex_identifier: 333333333333\s*ACCOUNT\s*NUMBER\s*MAE
     statement_config: MAYBANK_CASA_AND_MAE
@@ -22,6 +24,7 @@ accounts:
     type: cash
     number: "333333333333"
     drcr: debit
+    reconciliable: true
   - maybank_cc:
     regex_identifier: PENYATA AKAUN KAD KREDIT\s*Malayan Banking Berhad \(3813-K\)
     statement_config: MAYBANK_2_CC
@@ -29,6 +32,7 @@ accounts:
     type: cards
     number: "03981212"
     drcr: credit
+    reconciliable: true
   - tng:
     regex_identifier: TNG WALLET TRANSACTION HISTORY
     statement_config: TNG
@@ -36,6 +40,7 @@ accounts:
     type: cash
     number: "TNG_981212"
     drcr: debit
+    reconciliable: false
 statement: 
   MAYBANK_CASA_AND_MAE:
     patterns:
@@ -65,4 +70,7 @@ statement:
       date_format: "_2/1"
   TNG:
     patterns:
-      transaction: "([A-Za-z: &-]+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})\s+(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s+"
+      transaction: '([A-Za-z''0-9: \&-]+?)\s+(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})\s+(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s+'
+      transaction_date: 02/01/2006 15:04
+      amount_numbers_pattern: ([+-]?)RM(\d+\.\d+)
+      debit_suffix: '-'

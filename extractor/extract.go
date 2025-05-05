@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func ExecuteAgainstPath(path string) {
+func ExecuteAgainstPath(path string, transactionOnly bool) {
 	startTime := time.Now()
 	defer func() {
 		log.Printf("Total execution time: %v", time.Since(startTime))
@@ -42,7 +42,18 @@ func ExecuteAgainstPath(path string) {
 			}
 		}
 
-		as_json, _ := json.Marshal(result)
+		var output interface{}
+		if transactionOnly {
+			transactionList := []common.Transaction{}
+			for _, stmt := range result {
+				transactionList = append(transactionList, stmt.Transactions...)
+			}
+			output = transactionList
+		} else {
+			output = result
+		}
+
+		as_json, _ := json.Marshal(output)
 		fmt.Println(string(as_json))
 	} else {
 		log.Printf("Processing single file: %s", path)
@@ -58,7 +69,15 @@ func ExecuteAgainstPath(path string) {
 		}
 
 		log.Printf("Found %d transactions in %s (took %v)", len(result.Transactions), path, time.Since(fileStartTime))
-		as_json, _ := json.Marshal(result)
+
+		var output interface{}
+		if transactionOnly {
+			output = result.Transactions
+		} else {
+			output = result
+		}
+
+		as_json, _ := json.Marshal(output)
 		fmt.Println(string(as_json))
 	}
 }
@@ -66,7 +85,7 @@ func ExecuteAgainstPath(path string) {
 func processFile(filePath string) common.Statement {
 	startTime := time.Now()
 	log.Printf("Extracting rows from PDF: %s", filePath)
-	
+
 	// read file contents
 	pdfStartTime := time.Now()
 	rows, err := common.ExtractRowsFromPDF(filePath)
@@ -85,15 +104,15 @@ func processFile(filePath string) common.Statement {
 	matchStartTime := time.Now()
 	for _, acc := range accounts {
 		accountMap := acc.(map[string]interface{})
-        accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
-		
+		accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
+
 		if accountRegex.Match([]byte(text)) {
 			log.Printf("Matched account: %s (account matching took %v)", accountMap["name"].(string), time.Since(matchStartTime))
 			account := common.Account{
 				AccountNumber: accountMap["number"].(string),
-				AccountType: accountMap["type"].(string),
-				AccountName: accountMap["name"].(string),
-				DebitCredit: accountMap["drcr"].(string),
+				AccountType:   accountMap["type"].(string),
+				AccountName:   accountMap["name"].(string),
+				DebitCredit:   accountMap["drcr"].(string),
 			}
 
 			// process based on statement
