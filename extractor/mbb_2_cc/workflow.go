@@ -14,15 +14,15 @@ import (
 func Extract(path string, rows *[]string) common.Statement {
 	startTime := time.Now()
 	log.Printf("Starting extraction for MAYBANK_2_CC statement: %s", path)
-	
+
 	balanceStartTime := time.Now()
 	starting_balance, _ := ExtractStartingBalanceFromText(rows)
 	log.Printf("Extracted starting balance: %s (took %v)", starting_balance.String(), time.Since(balanceStartTime))
-	
+
 	endBalanceStartTime := time.Now()
 	ending_balance, _ := ExtractEndingBalanceFromText(rows)
 	log.Printf("Extracted ending balance: %s (took %v)", ending_balance.String(), time.Since(endBalanceStartTime))
-	
+
 	dateStartTime := time.Now()
 	statement_date, _ := ExtractStatementDateFromText(rows)
 	log.Printf("Extracted statement date: %s (took %v)", statement_date, time.Since(dateStartTime))
@@ -31,37 +31,37 @@ func Extract(path string, rows *[]string) common.Statement {
 	filename := filepath.Base(path)
 
 	statement := common.Statement{
-		Source: strings.TrimSuffix(filename, filepath.Ext(filename)),
+		Source:          strings.TrimSuffix(filename, filepath.Ext(filename)),
 		StartingBalance: starting_balance,
-		EndingBalance: ending_balance,
-		StatementDate: statement_dt,
-		Transactions: []common.Transaction{},
-		TotalCredit: decimal.Zero,
-		TotalDebit: decimal.Zero,
-		Nett: decimal.Zero,
+		EndingBalance:   ending_balance,
+		StatementDate:   &statement_dt,
+		Transactions:    []common.Transaction{},
+		TotalCredit:     decimal.Zero,
+		TotalDebit:      decimal.Zero,
+		Nett:            decimal.Zero,
 	}
 
 	log.Printf("Extracting transactions from statement")
 	transStartTime := time.Now()
 	ExtractTransactionsFromText(rows, &statement)
 	log.Printf("Transaction extraction completed (took %v)", time.Since(transStartTime))
-	
+
 	log.Printf("Ordering transactions by date")
 	sortStartTime := time.Now()
 	OrderTransactionsByDate(&statement.Transactions)
 	log.Printf("Transaction ordering completed (took %v)", time.Since(sortStartTime))
-	
+
 	log.Printf("Recalculating balances")
 	balanceRecalcStartTime := time.Now()
 	RecalculateBalances(&statement)
 	log.Printf("Balance recalculation completed (took %v)", time.Since(balanceRecalcStartTime))
-	
+
 	log.Printf("Statement Month Year: %s %d", statement.StatementDate.Month(), statement.StatementDate.Year())
 
 	if statement.CalculatedEndingBalance.Cmp(ending_balance) == 0 {
 		log.Printf("✓ Ending balance matches the calculated ending balance")
 	} else {
-		log.Printf("✗ Ending balance (%s) does not match the calculated ending balance (%s)", 
+		log.Printf("✗ Ending balance (%s) does not match the calculated ending balance (%s)",
 			ending_balance.String(), statement.CalculatedEndingBalance.String())
 	}
 
