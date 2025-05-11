@@ -1,9 +1,14 @@
 package common
 
 import (
+	"errors"
 	"log"
+	"os"
 	"strings"
 	"time"
+
+	"bytes"
+	"io"
 
 	"github.com/dslipak/pdf"
 	"github.com/shopspring/decimal"
@@ -41,8 +46,36 @@ type Transaction struct {
 	Reference    string          `json:"ref"`
 }
 
-func ExtractRowsFromPDF(path string) (*[]string, error) {
-	r, err := pdf.Open(path)
+func ExtractRowsFromPDFReader(reader io.Reader) (*[]string, error) {
+	// Ensure we have an io.ReaderAt and know the size
+	var rAt io.ReaderAt
+	var size int64
+
+	switch v := reader.(type) {
+	case io.ReaderAt:
+		// If the reader is already an io.ReaderAt, try to get the size
+		rAt = v
+		if seeker, ok := reader.(io.Seeker); ok {
+			cur, _ := seeker.Seek(0, io.SeekCurrent)
+			end, _ := seeker.Seek(0, io.SeekEnd)
+			seeker.Seek(cur, io.SeekStart)
+			size = end
+		} else {
+			return nil, errors.New("reader is io.ReaderAt but not io.Seeker, cannot determine size")
+		}
+	default:
+		// Read all into memory
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(reader)
+		if err != nil {
+			return nil, err
+		}
+		b := buf.Bytes()
+		rAt = bytes.NewReader(b)
+		size = int64(len(b))
+	}
+
+	r, err := pdf.NewReader(rAt, size)
 	if err != nil {
 		return nil, err
 	}
@@ -79,4 +112,13 @@ func ExtractRowsFromPDF(path string) (*[]string, error) {
 	}
 
 	return &extracted_rows, nil
+}
+
+func ExtractRowsFromPDF(path string) (*[]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return ExtractRowsFromPDFReader(file)
 }

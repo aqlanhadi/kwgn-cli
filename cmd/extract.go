@@ -36,7 +36,6 @@ func init() {
 
 	// Add flags to extract command
 	extractCmd.Flags().StringP("folder", "f", ".", "Folder in which kwgn will scan for files")
-	extractCmd.Flags().StringP("config", "c", "", "Config file path (default is ./.kwgn.yaml)")
 	extractCmd.Flags().StringP("output", "o", ".", "Folder in which kwgn will save the extracted data")
 	extractCmd.Flags().BoolVar(&transactionOnly, "transaction-only", false, "Print only transaction statements")
 	extractCmd.Flags().BoolVar(&statementOnly, "statement-only", false, "Print only statement details (excluding transactions)")
@@ -45,7 +44,6 @@ func init() {
 
 	// Bind flags to viper
 	viper.BindPFlag("target", extractCmd.Flags().Lookup("folder"))
-	viper.BindPFlag("config", extractCmd.Flags().Lookup("config"))
 	viper.BindPFlag("output", extractCmd.Flags().Lookup("output"))
 	viper.BindPFlag("transaction_only", extractCmd.Flags().Lookup("transaction-only"))
 	viper.BindPFlag("statement_only", extractCmd.Flags().Lookup("statement-only"))
