@@ -54,8 +54,12 @@ var serveCmd = &cobra.Command{
 			// Flags: allow as form values or query params
 			statementOnly := r.FormValue("statement_only") == "true" || r.URL.Query().Get("statement_only") == "true"
 			transactionOnly := r.FormValue("transaction_only") == "true" || r.URL.Query().Get("transaction_only") == "true"
+			statementType := r.FormValue("statement_type")
+			if statementType == "" {
+				statementType = r.URL.Query().Get("statement_type")
+			}
 
-			result := extractor.ProcessReader(file, handler.Filename)
+			result := extractor.ProcessReader(file, handler.Filename, statementType)
 			finalOutput := extractor.CreateFinalOutput(result, transactionOnly, statementOnly)
 
 			w.Header().Set("Content-Type", "application/json")
