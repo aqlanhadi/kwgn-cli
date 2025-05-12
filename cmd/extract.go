@@ -17,6 +17,7 @@ var (
 	}
 	transactionOnly bool
 	statementOnly   bool
+	statementType   string
 )
 
 func handler(cmd *cobra.Command, args []string) {
@@ -28,7 +29,7 @@ func handler(cmd *cobra.Command, args []string) {
 	// Access the configuration using Viper
 	target := viper.GetString("target")
 	log.Println("📂 Scanning ", target)
-	extractor.ExecuteAgainstPath(target, transactionOnly, statementOnly)
+	extractor.ExecuteAgainstPath(target, transactionOnly, statementOnly, statementType)
 }
 
 func init() {
@@ -39,6 +40,7 @@ func init() {
 	extractCmd.Flags().StringP("output", "o", ".", "Folder in which kwgn will save the extracted data")
 	extractCmd.Flags().BoolVar(&transactionOnly, "transaction-only", false, "Print only transaction statements")
 	extractCmd.Flags().BoolVar(&statementOnly, "statement-only", false, "Print only statement details (excluding transactions)")
+	extractCmd.Flags().StringVar(&statementType, "statement-type", "", "Override statement type detection (e.g., MAYBANK_CASA_AND_MAE)")
 
 	extractCmd.MarkFlagRequired("folder")
 
@@ -47,4 +49,5 @@ func init() {
 	viper.BindPFlag("output", extractCmd.Flags().Lookup("output"))
 	viper.BindPFlag("transaction_only", extractCmd.Flags().Lookup("transaction-only"))
 	viper.BindPFlag("statement_only", extractCmd.Flags().Lookup("statement-only"))
+	viper.BindPFlag("statement_type", extractCmd.Flags().Lookup("statement-type"))
 }
