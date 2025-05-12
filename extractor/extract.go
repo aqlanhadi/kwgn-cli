@@ -3,8 +3,10 @@ package extractor
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -18,8 +20,8 @@ import (
 
 // Removed StatementWithoutTransactions struct as we'll use maps for marshalling
 
-// createFinalOutput prepares the data structure for JSON marshalling based on flags.
-func createFinalOutput(stmt common.Statement, transactionOnly bool, statementOnly bool) interface{} {
+// CreateFinalOutput prepares the data structure for JSON marshalling based on flags.
+func CreateFinalOutput(stmt common.Statement, transactionOnly bool, statementOnly bool) interface{} {
 	if transactionOnly {
 		return stmt.Transactions // Return only transactions if flag is set
 	}
@@ -62,7 +64,7 @@ func createFinalOutput(stmt common.Statement, transactionOnly bool, statementOnl
 	return outputMap
 }
 
-func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool) {
+func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, statementType string) {
 	startTime := time.Now()
 	defer func() {
 		log.Printf("Total execution time: %v", time.Since(startTime))
@@ -79,7 +81,14 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool) {
 		for _, e := range entries {
 			fileStartTime := time.Now()
 			log.Printf("Processing file: %s", e.Name())
-			statement := processFile(path + e.Name())
+			filePath := filepath.Join(path, e.Name())
+			f, err := os.Open(filePath)
+			if err != nil {
+				log.Printf("Failed to open file %s: %v", e.Name(), err)
+				continue
+			}
+			defer f.Close()
+			statement := ProcessReader(f, filePath, statementType)
 			if len(statement.Transactions) > 0 || statement.Account.AccountNumber != "" { // Process if transactions or account found
 				log.Printf("Processed %s (took %v)", e.Name(), time.Since(fileStartTime))
 				processedStatements = append(processedStatements, statement)
@@ -99,7 +108,7 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool) {
 		} else {
 			outputList := []interface{}{}
 			for _, stmt := range processedStatements {
-				outputList = append(outputList, createFinalOutput(stmt, false, statementOnly))
+				outputList = append(outputList, CreateFinalOutput(stmt, false, statementOnly))
 			}
 			finalOutput = outputList
 		}
@@ -110,7 +119,13 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool) {
 	} else {
 		log.Printf("Processing single file: %s", path)
 		fileStartTime := time.Now()
-		result := processFile(path)
+		f, err := os.Open(path)
+		if err != nil {
+			log.Printf("Failed to open file %s: %v", path, err)
+			return
+		}
+		defer f.Close()
+		result := ProcessReader(f, path, statementType)
 
 		if len(result.Transactions) < 1 && result.Account.AccountNumber == "" { // Check if anything was found
 			log.Printf("No data found in %s (took %v)", path, time.Since(fileStartTime))
@@ -123,72 +138,104 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool) {
 		log.Printf("Processed %s (took %v)", path, time.Since(fileStartTime))
 
 		// Prepare final output based on flags
-		finalOutput := createFinalOutput(result, transactionOnly, statementOnly)
+		finalOutput := CreateFinalOutput(result, transactionOnly, statementOnly)
 
 		as_json, _ := json.MarshalIndent(finalOutput, "", "  ")
 		fmt.Println(string(as_json))
 	}
 }
 
-func processFile(filePath string) common.Statement {
+// processStatementByType selects and executes the correct extraction logic based on statementConfigName
+func processStatementByType(filename string, rows *[]string, account common.Account, statementConfigName string) common.Statement {
+	processStartTime := time.Now()
+	log.Printf("Processing as %s statement", statementConfigName) // Log added here for consistency
+
+	var statement common.Statement
+	switch statementConfigName {
+	case "MAYBANK_CASA_AND_MAE":
+		statement = mbb_mae_and_casa.Extract(filename, rows)
+	case "MAYBANK_2_CC":
+		statement = mbb_2_cc.Extract(filename, rows)
+	case "TNG":
+		statement = tng.Extract(filename, rows)
+	default:
+		log.Printf("Unknown statement type provided: %s", statementConfigName)
+		return common.Statement{} // Return empty if type is unknown
+	}
+
+	statement.Account = account
+	log.Printf("Statement processing completed (took %v)", time.Since(processStartTime))
+	return statement
+}
+
+func ProcessReader(reader io.Reader, filename string, statementType string) common.Statement {
 	startTime := time.Now()
-	log.Printf("Extracting rows from PDF: %s", filePath)
+	log.Printf("Extracting rows from PDF: %s", filename)
 
 	// read file contents
 	pdfStartTime := time.Now()
-	rows, err := common.ExtractRowsFromPDF(filePath)
+	rows, err := common.ExtractRowsFromPDFReader(reader)
 	pdfDuration := time.Since(pdfStartTime)
 
 	if (err != nil) || (len(*rows) < 1) {
-		log.Printf("Error or no rows found in %s: %v (PDF extraction took %v)", filePath, err, pdfDuration)
+		log.Printf("Error or no rows found in %s: %v (PDF extraction took %v)", filename, err, pdfDuration)
 		return common.Statement{}
 	}
 
-	log.Printf("Successfully extracted %d rows from %s (took %v)", len(*rows), filePath, pdfDuration)
+	log.Printf("Successfully extracted %d rows from %s (took %v)", len(*rows), filename, pdfDuration)
 	text := strings.Join(*rows, "\n")
 	accounts := viper.Get("accounts").([]interface{})
 
 	// loop accounts to find match
 	matchStartTime := time.Now()
-	for _, acc := range accounts {
-		accountMap := acc.(map[string]interface{})
-		accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
 
-		if accountRegex.Match([]byte(text)) {
-			log.Printf("Matched account: %s (account matching took %v)", accountMap["name"].(string), time.Since(matchStartTime))
-			account := common.Account{
-				AccountNumber: accountMap["number"].(string),
-				AccountType:   accountMap["type"].(string),
-				AccountName:   accountMap["name"].(string),
-				DebitCredit:   accountMap["drcr"].(string),
-				Reconciliable: accountMap["reconciliable"].(bool),
+	// Check for statementType override first
+	if statementType != "" {
+		log.Printf("Attempting to override statement type with: %s", statementType)
+		foundOverride := false
+		for _, acc := range accounts {
+			accountMap := acc.(map[string]interface{})
+			if configName, ok := accountMap["statement_config"].(string); ok && configName == statementType {
+				log.Printf("Found matching configuration for override: %s", accountMap["name"].(string))
+				account := common.Account{
+					AccountNumber: accountMap["number"].(string),
+					AccountType:   accountMap["type"].(string),
+					AccountName:   accountMap["name"].(string),
+					DebitCredit:   accountMap["drcr"].(string),
+					Reconciliable: accountMap["reconciliable"].(bool),
+				}
+				// Directly process based on the overridden statement type
+				return processStatementByType(filename, rows, account, statementType) // Call helper function
+				// foundOverride = true // This line is now unreachable due to returns in switch cases
+				// break
 			}
+		}
+		if !foundOverride {
+			log.Printf("Warning: Statement type override '%s' provided, but no matching configuration found.", statementType)
+			return common.Statement{} // Return empty if override config not found
+		}
+	} else {
+		// Original logic: loop accounts to find match based on regex
+		for _, acc := range accounts {
+			accountMap := acc.(map[string]interface{})
+			accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
 
-			// process based on statement
-			processStartTime := time.Now()
-			switch accountMap["statement_config"].(string) {
-			case "MAYBANK_CASA_AND_MAE":
-				log.Printf("Processing as MAYBANK_CASA_AND_MAE statement")
-				statement := mbb_mae_and_casa.Extract(filePath, rows)
-				statement.Account = account
-				log.Printf("Statement processing completed (took %v)", time.Since(processStartTime))
-				return statement
-			case "MAYBANK_2_CC":
-				log.Printf("Processing as MAYBANK_2_CC statement")
-				statement := mbb_2_cc.Extract(filePath, rows)
-				statement.Account = account
-				log.Printf("Statement processing completed (took %v)", time.Since(processStartTime))
-				return statement
-			case "TNG":
-				log.Printf("Processing as TNG statement")
-				statement := tng.Extract(filePath, rows)
-				statement.Account = account
-				log.Printf("Statement processing completed (took %v)", time.Since(processStartTime))
-				return statement
+			if accountRegex.Match([]byte(text)) {
+				log.Printf("Matched account: %s (account matching took %v)", accountMap["name"].(string), time.Since(matchStartTime))
+				account := common.Account{
+					AccountNumber: accountMap["number"].(string),
+					AccountType:   accountMap["type"].(string),
+					AccountName:   accountMap["name"].(string),
+					DebitCredit:   accountMap["drcr"].(string),
+					Reconciliable: accountMap["reconciliable"].(bool),
+				}
+
+				// process based on statement config from the matched account
+				return processStatementByType(filename, rows, account, accountMap["statement_config"].(string)) // Call helper function
 			}
 		}
 	}
 
-	log.Printf("No matching account configuration found for %s (total processing took %v)", filePath, time.Since(startTime))
+	log.Printf("No matching account configuration found for %s (total processing took %v)", filename, time.Since(startTime))
 	return common.Statement{}
 }
