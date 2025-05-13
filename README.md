@@ -21,12 +21,14 @@ go build -o kwgn
 Extract statements from a folder or file:
 
 ```sh
-./kwgn extract -f <folder-or-file> [--transaction-only] [--statement-only] [--config <config-file>]
+./kwgn extract -f <folder-or-file> [--transaction-only] [--statement-only] [--statement-type <statement-type>] [--config <config-file>]
 ```
 
 - `-f, --folder`         : Folder or file to scan for statements (required)
 - `--transaction-only`   : Output only transactions (JSON array)
 - `--statement-only`     : Output only statement details (no transactions)
+- `--statement-type`     : Override statement type detection (e.g., MAYBANK_CASA_AND_MAE)
+                           Possible values: `MAYBANK_CASA_AND_MAE`, `MAYBANK_2_CC`, `TNG`
 - `--config`             : Path to config file (default: ./.kwgn.yaml)
 - `--output`             : Output folder (default: .)
 
