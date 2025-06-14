@@ -6,10 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"encoding/json"
 
 	"github.com/aqlanhadi/kwgn/extractor"
+	"github.com/aqlanhadi/kwgn/extractor/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -54,9 +56,30 @@ var serveCmd = &cobra.Command{
 			// Flags: allow as form values or query params
 			statementOnly := r.FormValue("statement_only") == "true" || r.URL.Query().Get("statement_only") == "true"
 			transactionOnly := r.FormValue("transaction_only") == "true" || r.URL.Query().Get("transaction_only") == "true"
+			textOnly := r.FormValue("text_only") == "true" || r.URL.Query().Get("text_only") == "true"
 			statementType := r.FormValue("statement_type")
 			if statementType == "" {
 				statementType = r.URL.Query().Get("statement_type")
+			}
+
+			if textOnly {
+				// Handle text-only extraction
+				rows, err := common.ExtractRowsFromPDFReader(file)
+				if err != nil || len(*rows) < 1 {
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte("Could not extract text from file: " + err.Error()))
+					return
+				}
+
+				text := strings.Join(*rows, "\n")
+				textOutput := map[string]string{
+					"filename": handler.Filename,
+					"text":     text,
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(textOutput)
+				return
 			}
 
 			result := extractor.ProcessReader(file, handler.Filename, statementType)

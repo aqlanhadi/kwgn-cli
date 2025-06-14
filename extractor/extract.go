@@ -64,7 +64,7 @@ func CreateFinalOutput(stmt common.Statement, transactionOnly bool, statementOnl
 	return outputMap
 }
 
-func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, statementType string) {
+func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, statementType string, textOnly bool) {
 	startTime := time.Now()
 	defer func() {
 		log.Printf("Total execution time: %v", time.Since(startTime))
@@ -72,6 +72,44 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, s
 
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
 		log.Println("Processing directory:", path)
+
+		if textOnly {
+			// For text-only extraction from directory
+			entries, err := os.ReadDir(path)
+			if err != nil {
+				log.Fatal(err)
+			}
+			allTexts := []map[string]string{}
+			for _, e := range entries {
+				fileStartTime := time.Now()
+				log.Printf("Extracting text from: %s", e.Name())
+				filePath := filepath.Join(path, e.Name())
+				f, err := os.Open(filePath)
+				if err != nil {
+					log.Printf("Failed to open file %s: %v", e.Name(), err)
+					continue
+				}
+				defer f.Close()
+
+				rows, err := common.ExtractRowsFromPDFReader(f)
+				if err != nil || len(*rows) < 1 {
+					log.Printf("Error or no text found in %s: %v", e.Name(), err)
+					continue
+				}
+
+				text := strings.Join(*rows, "\n")
+				allTexts = append(allTexts, map[string]string{
+					"filename": e.Name(),
+					"text":     text,
+				})
+				log.Printf("Extracted text from %s (took %v)", e.Name(), time.Since(fileStartTime))
+			}
+
+			as_json, _ := json.MarshalIndent(allTexts, "", "  ")
+			fmt.Println(string(as_json))
+			return
+		}
+
 		processedStatements := []common.Statement{}
 
 		entries, err := os.ReadDir(path)
@@ -125,6 +163,30 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, s
 			return
 		}
 		defer f.Close()
+
+		if textOnly {
+			// For text-only extraction from single file
+			rows, err := common.ExtractRowsFromPDFReader(f)
+			if err != nil || len(*rows) < 1 {
+				log.Printf("Error or no text found in %s: %v", path, err)
+				emptyJSON := struct{}{}
+				jsonBytes, _ := json.MarshalIndent(emptyJSON, "", "  ")
+				fmt.Println(string(jsonBytes))
+				return
+			}
+
+			text := strings.Join(*rows, "\n")
+			textOutput := map[string]string{
+				"filename": filepath.Base(path),
+				"text":     text,
+			}
+
+			as_json, _ := json.MarshalIndent(textOutput, "", "  ")
+			fmt.Println(string(as_json))
+			log.Printf("Extracted text from %s (took %v)", path, time.Since(fileStartTime))
+			return
+		}
+
 		result := ProcessReader(f, path, statementType)
 
 		if len(result.Transactions) < 1 && result.Account.AccountNumber == "" { // Check if anything was found
@@ -184,7 +246,44 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 
 	log.Printf("Successfully extracted %d rows from %s (took %v)", len(*rows), filename, pdfDuration)
 	text := strings.Join(*rows, "\n")
-	accounts := viper.Get("accounts").([]interface{})
+
+	// Check if accounts configuration exists
+	accountsConfig := viper.Get("accounts")
+
+	if accountsConfig == nil {
+		log.Printf("No accounts configuration found (nil)")
+		// If statementType is provided, process without account matching
+		if statementType != "" {
+			log.Printf("Processing with statement type override: %s", statementType)
+			return processStatementByType(filename, rows, common.Account{}, statementType)
+		}
+		log.Printf("No matching account configuration found for %s (total processing took %v)", filename, time.Since(startTime))
+		return common.Statement{}
+	}
+
+	accounts, ok := accountsConfig.([]interface{})
+	if !ok {
+		log.Printf("Invalid accounts configuration format (not a slice)")
+		// If statementType is provided, process without account matching
+		if statementType != "" {
+			log.Printf("Processing with statement type override: %s", statementType)
+			return processStatementByType(filename, rows, common.Account{}, statementType)
+		}
+		log.Printf("No matching account configuration found for %s (total processing took %v)", filename, time.Since(startTime))
+		return common.Statement{}
+	}
+
+	// Check if accounts array is empty
+	if len(accounts) == 0 {
+		log.Printf("Accounts configuration is empty")
+		// If statementType is provided, process without account matching
+		if statementType != "" {
+			log.Printf("Processing with statement type override: %s", statementType)
+			return processStatementByType(filename, rows, common.Account{}, statementType)
+		}
+		log.Printf("No matching account configuration found for %s (total processing took %v)", filename, time.Since(startTime))
+		return common.Statement{}
+	}
 
 	// loop accounts to find match
 	matchStartTime := time.Now()
@@ -211,8 +310,8 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 			}
 		}
 		if !foundOverride {
-			log.Printf("Warning: Statement type override '%s' provided, but no matching configuration found.", statementType)
-			return common.Statement{} // Return empty if override config not found
+			log.Printf("Warning: Statement type override '%s' provided, but no matching configuration found. Processing without account details.", statementType)
+			return processStatementByType(filename, rows, common.Account{}, statementType)
 		}
 	} else {
 		// Original logic: loop accounts to find match based on regex
