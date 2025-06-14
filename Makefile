@@ -15,3 +15,6 @@ install: build
 
 clean:
 	rm -f $(BINARY_NAME) ç
+
+build-linux:
+	GOOS=linux GOARCH=amd64 go build -o bin/kwgn-linux .

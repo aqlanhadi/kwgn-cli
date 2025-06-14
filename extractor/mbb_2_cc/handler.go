@@ -100,7 +100,7 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 		}
 
 		sequence += 1
-		
+
 		date, _ := time.ParseInLocation(viper.GetString("statement.MAYBANK_2_CC.patterns.date_format"), match[1], time.Local)
 		// Fix CC Date
 		if date.Year() != statement.StatementDate.Year() {
@@ -108,9 +108,9 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 			transaction_year := statement.StatementDate.Year()
 			// If the date is in the future, it means the transaction is in the previous year
 			if statement.StatementDate.Month() < date.Month() {
-				transaction_year = statement.StatementDate.Year()-1
+				transaction_year = statement.StatementDate.Year() - 1
 			}
-				
+
 			date = time.Date(transaction_year, date.Month(), date.Day(), 0, 0, 0, 0, time.Local)
 		}
 
@@ -180,25 +180,38 @@ func ExtractTotalCreditFromText(text string) (float64, error) {
 // TODO: move to singular check before processFile
 func ExtractAccountDetailsFromText(rows *[]string) (common.Account, error) {
 
+	// Check if accounts configuration exists
+	accountsConfig := viper.Get("statement.MAYBANK_2_CC.accounts")
+	if accountsConfig == nil {
+		// Return empty account if accounts key is not set
+		return common.Account{}, nil
+	}
+
+	accounts, ok := accountsConfig.([]interface{})
+	if !ok {
+		// Return empty account if accounts configuration is not a valid array
+		return common.Account{}, nil
+	}
+
 	// combine all rows to a string
 	text := strings.Join(*rows, "\n")
-	accounts := viper.Get("statement.MAYBANK_2_CC.accounts").([]interface{})
 
 	fmt.Println(text)
 	for _, account := range accounts {
 		accountMap := account.(map[string]interface{})
-        accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
-		
+		accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
+
 		if accountRegex.Match([]byte(text)) {
 			fmt.Println("Found ", accountMap["name"].(string))
 			return common.Account{
 				AccountNumber: accountMap["number"].(string),
-				AccountType: accountMap["type"].(string),
-				AccountName: accountMap["name"].(string),
-				DebitCredit: accountMap["drcr"].(string),
+				AccountType:   accountMap["type"].(string),
+				AccountName:   accountMap["name"].(string),
+				DebitCredit:   accountMap["drcr"].(string),
 			}, nil
 		}
 	}
-	
-	panic("no account match")
+
+	// Return empty account instead of panicking when no match is found
+	return common.Account{}, nil
 }

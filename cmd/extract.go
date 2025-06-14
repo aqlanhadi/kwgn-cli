@@ -18,6 +18,7 @@ var (
 	transactionOnly bool
 	statementOnly   bool
 	statementType   string
+	textOnly        bool
 )
 
 func handler(cmd *cobra.Command, args []string) {
@@ -29,7 +30,7 @@ func handler(cmd *cobra.Command, args []string) {
 	// Access the configuration using Viper
 	target := viper.GetString("target")
 	log.Println("📂 Scanning ", target)
-	extractor.ExecuteAgainstPath(target, transactionOnly, statementOnly, statementType)
+	extractor.ExecuteAgainstPath(target, transactionOnly, statementOnly, statementType, textOnly)
 }
 
 func init() {
@@ -41,6 +42,7 @@ func init() {
 	extractCmd.Flags().BoolVar(&transactionOnly, "transaction-only", false, "Print only transaction statements")
 	extractCmd.Flags().BoolVar(&statementOnly, "statement-only", false, "Print only statement details (excluding transactions)")
 	extractCmd.Flags().StringVar(&statementType, "statement-type", "", "Override statement type detection (e.g., MAYBANK_CASA_AND_MAE)")
+	extractCmd.Flags().BoolVarP(&textOnly, "text-only", "t", false, "Extract raw text from PDF without processing (returns JSON with filename and text)")
 
 	extractCmd.MarkFlagRequired("folder")
 
@@ -50,4 +52,5 @@ func init() {
 	viper.BindPFlag("transaction_only", extractCmd.Flags().Lookup("transaction-only"))
 	viper.BindPFlag("statement_only", extractCmd.Flags().Lookup("statement-only"))
 	viper.BindPFlag("statement_type", extractCmd.Flags().Lookup("statement-type"))
+	viper.BindPFlag("text_only", extractCmd.Flags().Lookup("text-only"))
 }
