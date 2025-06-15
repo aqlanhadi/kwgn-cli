@@ -1,7 +1,6 @@
 package tng
 
 import (
-	"fmt"
 	"log"
 	"path/filepath"
 	"regexp"
@@ -34,6 +33,16 @@ func Extract(path string, rows *[]string) common.Statement {
 		for _, s := range matches {
 			description := strings.TrimSpace(s[1])
 			description = strings.ReplaceAll(description, "  ", " ")
+
+			// Handle Exit Toll prefix
+			var descriptions []string
+			if strings.HasPrefix(description, "Exit Toll: ") {
+				restOfString := strings.TrimPrefix(description, "Exit Toll: ")
+				descriptions = []string{"Exit Toll", restOfString, s[4]}
+			} else {
+				descriptions = []string{description, s[4]}
+			}
+
 			date := s[2]
 			time_str := s[3]
 			// convert date to time.Time
@@ -77,29 +86,37 @@ func Extract(path string, rows *[]string) common.Statement {
 				total_credit = total_credit.Add(amount_decimal)
 			}
 
+			// fmt.Println(s[5] + s[6])
+			// fmt.Println(s)
+
+			// var _ = common.Transaction{
+			// 	Sequence:     sequence_counter,
+			// 	Date:         dateTime,
+			// 	Descriptions: descriptions,
+			// 	Type:         tx_type,
+			// 	Amount:       amount_decimal,
+			// 	Reference:    s[5] + s[6],
+			// }
+
 			transactions = append(transactions, common.Transaction{
 				Sequence:     sequence_counter,
 				Date:         dateTime,
-				Descriptions: []string{description, s[4]},
+				Descriptions: descriptions,
 				Type:         tx_type,
 				Amount:       amount_decimal,
-				Reference:    s[5],
+				Reference:    s[5] + s[6],
 			})
 			sequence_counter++
 		}
 	}
 
-	var dateRangeStr string
-	if firstDateSet {
-		dateRangeStr = fmt.Sprintf("%s - %s", minDate.Format(time.RFC3339), maxDate.Format(time.RFC3339))
-	}
-
 	return common.Statement{
-		Source:            strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
-		TransactionsRange: dateRangeStr,
-		Transactions:      transactions,
-		TotalDebit:        total_debit,
-		TotalCredit:       total_credit,
-		Nett:              total_debit.Add(total_credit),
+		Source:               strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+		TransactionStartDate: minDate,
+		TransactionEndDate:   maxDate,
+		Transactions:         transactions,
+		TotalDebit:           total_debit,
+		TotalCredit:          total_credit,
+		Nett:                 total_debit.Add(total_credit),
 	}
 }
