@@ -24,7 +24,8 @@ type Statement struct {
 	TotalCredit             decimal.Decimal `json:"total_credit"`
 	TotalDebit              decimal.Decimal `json:"total_debit"`
 	Nett                    decimal.Decimal `json:"nett"`
-	TransactionsRange       string          `json:"transactions_range,omitempty"`
+	TransactionStartDate    time.Time       `json:"transaction_start_date,omitempty"`
+	TransactionEndDate      time.Time       `json:"transaction_end_date,omitempty"`
 	CalculatedEndingBalance decimal.Decimal `json:"calculated_ending_balance"`
 }
 

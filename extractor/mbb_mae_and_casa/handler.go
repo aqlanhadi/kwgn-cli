@@ -186,6 +186,8 @@ func ExtractTransactionsFromText(rows *[]string, statement *common.Statement) ([
 	statement.Transactions = transactions
 	statement.Nett = total_debit.Add(total_credit)
 	statement.CalculatedEndingBalance = balance
+	statement.TransactionStartDate = transactions[0].Date
+	statement.TransactionEndDate = transactions[len(transactions)-1].Date
 
 	return transactions, nil
 }

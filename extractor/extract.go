@@ -34,9 +34,11 @@ func CreateFinalOutput(stmt common.Statement, transactionOnly bool, statementOnl
 	outputMap["total_credit"] = stmt.TotalCredit
 	outputMap["total_debit"] = stmt.TotalDebit
 	outputMap["nett"] = stmt.Nett
-	if stmt.TransactionsRange != "" {
-		outputMap["transactions_range"] = stmt.TransactionsRange
-	}
+	outputMap["transaction_start_date"] = stmt.TransactionStartDate
+	outputMap["transaction_end_date"] = stmt.TransactionEndDate
+	// if stmt.TransactionStartDate != (time.Time{}) && stmt.TransactionEndDate != (time.Time{}) {
+	// 	outputMap["transactions_range"] = fmt.Sprintf("%s - %s", stmt.TransactionStartDate.Format(time.RFC3339), stmt.TransactionEndDate.Format(time.RFC3339))
+	// }
 
 	// Include reconcilable fields only if the account is reconcilable
 	if stmt.Account.Reconciliable {
