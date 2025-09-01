@@ -254,6 +254,12 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 
 	if accountsConfig == nil {
 		log.Printf("No accounts configuration found (nil)")
+		// Check for default statement type in config
+		defaultType := viper.GetString("statement.default_type")
+		if defaultType != "" {
+			log.Printf("Using default statement type: %s", defaultType)
+			return processStatementByType(filename, rows, common.Account{}, defaultType)
+		}
 		// If statementType is provided, process without account matching
 		if statementType != "" {
 			log.Printf("Processing with statement type override: %s", statementType)
@@ -278,6 +284,12 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 	// Check if accounts array is empty
 	if len(accounts) == 0 {
 		log.Printf("Accounts configuration is empty")
+		// Check for default statement type in config
+		defaultType := viper.GetString("statement.default_type")
+		if defaultType != "" {
+			log.Printf("Using default statement type: %s", defaultType)
+			return processStatementByType(filename, rows, common.Account{}, defaultType)
+		}
 		// If statementType is provided, process without account matching
 		if statementType != "" {
 			log.Printf("Processing with statement type override: %s", statementType)
