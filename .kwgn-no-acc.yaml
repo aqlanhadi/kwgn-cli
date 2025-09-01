@@ -1,7 +1,7 @@
-target: /mnt/c/Users/aqlan/Downloads/Consolidated Statements/
-output: /Users/aqlan/Developer/kwgn-cli
 accounts:
-statement: 
+# No account configurations - will use default statement type detection
+statement:
+  default_type: MAYBANK_CASA_AND_MAE
   MAYBANK_CASA_AND_MAE:
     patterns:
       starting_balance: BEGINNING BALANCE\s*([\d,]+\.\d+)
@@ -33,4 +33,4 @@ statement:
       transaction: '([A-Za-z''0-9: \&-]+?)\s+(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})\s+(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s+'
       transaction_date: 02/01/2006 15:04
       amount_numbers_pattern: ([+-]?)RM(\d+\.\d+)
-      debit_suffix: '-'
+      debit_suffix: "-"
