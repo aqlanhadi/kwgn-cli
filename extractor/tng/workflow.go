@@ -71,8 +71,13 @@ func Extract(path string, rows *[]string) common.Statement {
 
 			amount_numbers_pattern := regexp.MustCompile(viper.GetString("statement.TNG.patterns.amount_numbers_pattern"))
 			amount_numbers_match := amount_numbers_pattern.FindAllStringSubmatch(s[7], -1)
-			amount_sign := amount_numbers_match[0][1]
 
+			if len(amount_numbers_match) == 0 || len(amount_numbers_match[0]) < 3 {
+				log.Printf("Skipping transaction due to invalid amount format: %s", s[7])
+				continue
+			}
+
+			amount_sign := amount_numbers_match[0][1]
 			amount := amount_numbers_match[0][2]
 			amount_decimal, _ := decimal.NewFromString(amount_sign + amount)
 

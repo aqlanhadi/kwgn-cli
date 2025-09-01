@@ -20,6 +20,7 @@ import (
 // Embedded default configuration (from .kwgn-no-acc.yaml)
 const defaultConfigYAML = `
 accounts:
+# No account configurations - will use default statement type detection
 statement:
   MAYBANK_CASA_AND_MAE:
     patterns:
@@ -52,7 +53,7 @@ statement:
       transaction: '([A-Za-z''0-9: \&-]+?)\s+(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})\s+(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s+'
       transaction_date: 02/01/2006 15:04
       amount_numbers_pattern: ([+-]?)RM(\d+\.\d+)
-      debit_suffix: '-'`
+      debit_suffix: "-"`
 
 var (
 	cfgFile string
@@ -181,7 +182,6 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// No config file found, use embedded default configuration
-			log.Println("No config file found. Using embedded default configuration.")
 			if err := viper.ReadConfig(bytes.NewBufferString(defaultConfigYAML)); err != nil {
 				fmt.Printf("Error loading embedded configuration: %v\n", err)
 				os.Exit(1)
