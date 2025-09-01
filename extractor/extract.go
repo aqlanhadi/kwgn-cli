@@ -254,18 +254,28 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 
 	if accountsConfig == nil {
 		log.Printf("No accounts configuration found (nil)")
-		// Check for default statement type in config
-		defaultType := viper.GetString("statement.default_type")
-		if defaultType != "" {
-			log.Printf("Using default statement type: %s", defaultType)
-			return processStatementByType(filename, rows, common.Account{}, defaultType)
-		}
 		// If statementType is provided, process without account matching
 		if statementType != "" {
 			log.Printf("Processing with statement type override: %s", statementType)
 			return processStatementByType(filename, rows, common.Account{}, statementType)
 		}
-		log.Printf("No matching account configuration found for %s (total processing took %v)", filename, time.Since(startTime))
+
+		// No accounts config and no statementType override - try all statement types
+		log.Printf("Trying all available statement types for %s", filename)
+		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG"}
+
+		for _, stmtType := range statementTypes {
+			log.Printf("Attempting to process as %s", stmtType)
+			result := processStatementByType(filename, rows, common.Account{}, stmtType)
+
+			// Check if we got a successful result (has transactions or account info)
+			if len(result.Transactions) > 0 || result.Account.AccountNumber != "" {
+				log.Printf("Successfully processed %s as %s", filename, stmtType)
+				return result
+			}
+		}
+
+		log.Printf("No statement type matched for %s (total processing took %v)", filename, time.Since(startTime))
 		return common.Statement{}
 	}
 
@@ -284,18 +294,28 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 	// Check if accounts array is empty
 	if len(accounts) == 0 {
 		log.Printf("Accounts configuration is empty")
-		// Check for default statement type in config
-		defaultType := viper.GetString("statement.default_type")
-		if defaultType != "" {
-			log.Printf("Using default statement type: %s", defaultType)
-			return processStatementByType(filename, rows, common.Account{}, defaultType)
-		}
 		// If statementType is provided, process without account matching
 		if statementType != "" {
 			log.Printf("Processing with statement type override: %s", statementType)
 			return processStatementByType(filename, rows, common.Account{}, statementType)
 		}
-		log.Printf("No matching account configuration found for %s (total processing took %v)", filename, time.Since(startTime))
+
+		// Empty accounts config and no statementType override - try all statement types
+		log.Printf("Trying all available statement types for %s", filename)
+		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG"}
+
+		for _, stmtType := range statementTypes {
+			log.Printf("Attempting to process as %s", stmtType)
+			result := processStatementByType(filename, rows, common.Account{}, stmtType)
+
+			// Check if we got a successful result (has transactions or account info)
+			if len(result.Transactions) > 0 || result.Account.AccountNumber != "" {
+				log.Printf("Successfully processed %s as %s", filename, stmtType)
+				return result
+			}
+		}
+
+		log.Printf("No statement type matched for %s (total processing took %v)", filename, time.Since(startTime))
 		return common.Statement{}
 	}
 
