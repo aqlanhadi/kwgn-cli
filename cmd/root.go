@@ -59,9 +59,18 @@ var (
 	cfgFile string
 	verbose bool
 	rootCmd = &cobra.Command{
-		Use:   "kwgn",
+		Use:   "kwgn [filename]",
 		Short: "A brief description of your application",
 		Long:  `kwgn is a utility to extract structured data out of your financial statements`,
+		Args:  cobra.ArbitraryArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 1 {
+				viper.Set("target", args[0])
+				handler(extractCmd, []string{})
+				return
+			}
+			cmd.Help()
+		},
 	}
 )
 

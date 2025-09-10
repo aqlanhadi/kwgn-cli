@@ -30,7 +30,14 @@ func CreateFinalOutput(stmt common.Statement, transactionOnly bool, statementOnl
 
 	// Always include these fields
 	outputMap["source"] = stmt.Source
-	outputMap["account"] = stmt.Account // Includes Reconciliable flag now
+	// Include account only if it has non-default values
+	if stmt.Account.AccountNumber != "" ||
+		stmt.Account.AccountName != "" ||
+		stmt.Account.AccountType != "" ||
+		stmt.Account.DebitCredit != "" ||
+		stmt.Account.Reconciliable {
+		outputMap["account"] = stmt.Account
+	}
 	outputMap["total_credit"] = stmt.TotalCredit
 	outputMap["total_debit"] = stmt.TotalDebit
 	outputMap["nett"] = stmt.Nett

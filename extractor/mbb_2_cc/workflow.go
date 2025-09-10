@@ -51,6 +51,11 @@ func Extract(path string, rows *[]string) common.Statement {
 	OrderTransactionsByDate(&statement.Transactions)
 	log.Printf("Transaction ordering completed (took %v)", time.Since(sortStartTime))
 
+	// Renumber sequences to match the sorted order
+	for i := range statement.Transactions {
+		statement.Transactions[i].Sequence = i + 1
+	}
+
 	log.Printf("Recalculating balances")
 	balanceRecalcStartTime := time.Now()
 	RecalculateBalances(&statement)
