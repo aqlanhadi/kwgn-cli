@@ -47,20 +47,18 @@ func CreateFinalOutput(stmt common.Statement, transactionOnly bool, statementOnl
 	// 	outputMap["transactions_range"] = fmt.Sprintf("%s - %s", stmt.TransactionStartDate.Format(time.RFC3339), stmt.TransactionEndDate.Format(time.RFC3339))
 	// }
 
-	// Include reconcilable fields only if the account is reconcilable
-	if stmt.Account.Reconciliable {
-		if stmt.StatementDate != nil && !stmt.StatementDate.IsZero() {
-			outputMap["statement_date"] = stmt.StatementDate
-		}
-		if !stmt.StartingBalance.IsZero() {
-			outputMap["starting_balance"] = stmt.StartingBalance
-		}
-		if !stmt.EndingBalance.IsZero() {
-			outputMap["ending_balance"] = stmt.EndingBalance
-		}
-		if !stmt.CalculatedEndingBalance.IsZero() {
-			outputMap["calculated_ending_balance"] = stmt.CalculatedEndingBalance
-		}
+	// Include balance fields if they have values
+	if stmt.StatementDate != nil && !stmt.StatementDate.IsZero() {
+		outputMap["statement_date"] = stmt.StatementDate
+	}
+	if !stmt.StartingBalance.IsZero() {
+		outputMap["starting_balance"] = stmt.StartingBalance
+	}
+	if !stmt.EndingBalance.IsZero() {
+		outputMap["ending_balance"] = stmt.EndingBalance
+	}
+	if !stmt.CalculatedEndingBalance.IsZero() {
+		outputMap["calculated_ending_balance"] = stmt.CalculatedEndingBalance
 	}
 
 	// Include transactions unless statementOnly flag is set
