@@ -1,60 +1,23 @@
 package common
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"log"
 	"os"
 	"strings"
-	"time"
-
-	"bytes"
-	"io"
 
 	"github.com/dslipak/pdf"
-	"github.com/shopspring/decimal"
 )
 
-type Statement struct {
-	Source                  string          `json:"source"`
-	StartingBalance         decimal.Decimal `json:"starting_balance,omitempty"`
-	EndingBalance           decimal.Decimal `json:"ending_balance,omitempty"`
-	StatementDate           *time.Time      `json:"statement_date,omitempty"`
-	Account                 Account         `json:"account"`
-	Transactions            []Transaction   `json:"transactions"`
-	TotalCredit             decimal.Decimal `json:"total_credit"`
-	TotalDebit              decimal.Decimal `json:"total_debit"`
-	Nett                    decimal.Decimal `json:"nett"`
-	TransactionStartDate    time.Time       `json:"transaction_start_date,omitempty"`
-	TransactionEndDate      time.Time       `json:"transaction_end_date,omitempty"`
-	CalculatedEndingBalance decimal.Decimal `json:"calculated_ending_balance"`
-}
-
-type Account struct {
-	AccountNumber string `json:"account_number"`
-	AccountName   string `json:"account_name"`
-	AccountType   string `json:"account_type"`
-	DebitCredit   string `json:"debit_credit"`
-	Reconciliable bool   `json:"reconciliable"`
-}
-
-type Transaction struct {
-	Sequence     int             `json:"sequence"`
-	Date         time.Time       `json:"date"`
-	Descriptions []string        `json:"descriptions"`
-	Type         string          `json:"type"`
-	Amount       decimal.Decimal `json:"amount"`
-	Balance      decimal.Decimal `json:"balance"`
-	Reference    string          `json:"ref"`
-}
-
+// ExtractRowsFromPDFReader reads a PDF from an io.Reader and returns text rows
 func ExtractRowsFromPDFReader(reader io.Reader) (*[]string, error) {
-	// Ensure we have an io.ReaderAt and know the size
 	var rAt io.ReaderAt
 	var size int64
 
 	switch v := reader.(type) {
 	case io.ReaderAt:
-		// If the reader is already an io.ReaderAt, try to get the size
 		rAt = v
 		if seeker, ok := reader.(io.Seeker); ok {
 			cur, _ := seeker.Seek(0, io.SeekCurrent)
@@ -65,10 +28,8 @@ func ExtractRowsFromPDFReader(reader io.Reader) (*[]string, error) {
 			return nil, errors.New("reader is io.ReaderAt but not io.Seeker, cannot determine size")
 		}
 	default:
-		// Read all into memory
 		buf := new(bytes.Buffer)
-		_, err := buf.ReadFrom(reader)
-		if err != nil {
+		if _, err := buf.ReadFrom(reader); err != nil {
 			return nil, err
 		}
 		b := buf.Bytes()
@@ -81,10 +42,8 @@ func ExtractRowsFromPDFReader(reader io.Reader) (*[]string, error) {
 		return nil, err
 	}
 
-	// Pre-allocate slice with estimated capacity
 	numPages := r.NumPage()
-	estimatedRows := numPages * 100 // Assume average 100 rows per page
-	extracted_rows := make([]string, 0, estimatedRows)
+	extractedRows := make([]string, 0, numPages*50)
 
 	for no := 1; no <= numPages; no++ {
 		page := r.Page(no)
@@ -95,26 +54,23 @@ func ExtractRowsFromPDFReader(reader io.Reader) (*[]string, error) {
 		}
 
 		for _, row := range rows {
-			// Use strings.Builder for efficient string concatenation
 			var builder strings.Builder
-			builder.Grow(len(row.Content) * 20) // Pre-allocate assuming average 20 chars per content
-
 			for i, text := range row.Content {
 				builder.WriteString(text.S)
 				if i < len(row.Content)-1 {
 					builder.WriteByte(' ')
 				}
 			}
-
 			if builder.Len() > 0 {
-				extracted_rows = append(extracted_rows, builder.String())
+				extractedRows = append(extractedRows, builder.String())
 			}
 		}
 	}
 
-	return &extracted_rows, nil
+	return &extractedRows, nil
 }
 
+// ExtractRowsFromPDF reads a PDF file and returns text rows
 func ExtractRowsFromPDF(path string) (*[]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
