@@ -10,9 +10,10 @@ import (
 
 var (
 	extractCmd = &cobra.Command{
-		Use:   "extract",
+		Use:   "extract [target]",
 		Short: "Extracts statement(s)",
 		Long:  `Extracts a given statement or statements. \nThis command will match the file names against the provided \nconfig and run the respective extraction pipeline.`,
+		Args:  cobra.MaximumNArgs(1),
 		Run:   handler,
 	}
 	transactionOnly bool
@@ -29,6 +30,9 @@ func handler(cmd *cobra.Command, args []string) {
 
 	// Access the configuration using Viper
 	target := viper.GetString("target")
+	if len(args) == 1 && args[0] != "" {
+		target = args[0]
+	}
 	log.Println("📂 Scanning ", target)
 	extractor.ExecuteAgainstPath(target, transactionOnly, statementOnly, statementType, textOnly)
 }
@@ -43,8 +47,6 @@ func init() {
 	extractCmd.Flags().BoolVar(&statementOnly, "statement-only", false, "Print only statement details (excluding transactions)")
 	extractCmd.Flags().StringVar(&statementType, "statement-type", "", "Override statement type detection (e.g., MAYBANK_CASA_AND_MAE)")
 	extractCmd.Flags().BoolVarP(&textOnly, "text-only", "t", false, "Extract raw text from PDF without processing (returns JSON with filename and text)")
-
-	extractCmd.MarkFlagRequired("folder")
 
 	// Bind flags to viper
 	viper.BindPFlag("target", extractCmd.Flags().Lookup("folder"))
