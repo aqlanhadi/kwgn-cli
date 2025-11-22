@@ -53,7 +53,14 @@ statement:
       transaction: '([A-Za-z''0-9: \&-]+?)\s+(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})\s+(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s+'
       transaction_date: 02/01/2006 15:04
       amount_numbers_pattern: ([+-]?)RM(\d+\.\d+)
-      debit_suffix: "-"`
+      debit_suffix: "-"
+  TNG_EMAIL:
+    patterns:
+      transaction: '(?s)(\d+/\d+/\d{4})\s+(\w+)\s+([A-Za-z0-9_ ]+?)\s+(\d{11})\s+(.*?)\s+(RM\d+\.\d{2})\s+(RM\d+\.\d{2})'
+      date_format: "2/1/2006"
+      datetime_pattern: \d+/\d+/\d{4} \d{2}:\d{2} (AM|PM)
+      datetime_format: "2/1/2006 03:04 PM"
+      credit_transaction_types: Reload,Transfer to Wallet,Balance Top Up,DUITNOW_RECEI`
 
 var (
 	cfgFile string

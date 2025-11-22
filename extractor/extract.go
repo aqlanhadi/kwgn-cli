@@ -15,6 +15,7 @@ import (
 	"github.com/aqlanhadi/kwgn/extractor/mbb_2_cc"
 	"github.com/aqlanhadi/kwgn/extractor/mbb_mae_and_casa"
 	"github.com/aqlanhadi/kwgn/extractor/tng"
+	"github.com/aqlanhadi/kwgn/extractor/tng_email"
 	"github.com/spf13/viper"
 )
 
@@ -227,6 +228,8 @@ func processStatementByType(filename string, rows *[]string, account common.Acco
 		statement = mbb_2_cc.Extract(filename, rows)
 	case "TNG":
 		statement = tng.Extract(filename, rows)
+	case "TNG_EMAIL":
+		statement = tng_email.Extract(filename, rows)
 	default:
 		log.Printf("Unknown statement type provided: %s", statementConfigName)
 		return common.Statement{} // Return empty if type is unknown
@@ -267,7 +270,7 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 
 		// No accounts config and no statementType override - try all statement types
 		log.Printf("Trying all available statement types for %s", filename)
-		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG"}
+		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG", "TNG_EMAIL"}
 
 		for _, stmtType := range statementTypes {
 			log.Printf("Attempting to process as %s", stmtType)
@@ -307,7 +310,7 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 
 		// Empty accounts config and no statementType override - try all statement types
 		log.Printf("Trying all available statement types for %s", filename)
-		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG"}
+		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG", "TNG_EMAIL"}
 
 		for _, stmtType := range statementTypes {
 			log.Printf("Attempting to process as %s", stmtType)
