@@ -39,8 +39,6 @@ func loadConfig() config {
 
 func Extract(path string, rows *[]string) common.Statement {
 	cfg := loadConfig()
-	startTime := time.Now()
-	log.Printf("Starting extraction for MAYBANK_CASA_AND_MAE statement: %s", path)
 
 	statement := common.Statement{
 		Source:       strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
@@ -145,13 +143,9 @@ func Extract(path string, rows *[]string) common.Statement {
 		statement.TransactionEndDate = statement.Transactions[len(statement.Transactions)-1].Date
 	}
 
-	if statement.CalculatedEndingBalance.Equal(statement.EndingBalance) {
-		log.Printf("✓ Ending balance matches")
-	} else {
+	if !statement.CalculatedEndingBalance.Equal(statement.EndingBalance) {
 		log.Printf("✗ Ending balance mismatch: Calc=%s vs Stmt=%s", statement.CalculatedEndingBalance, statement.EndingBalance)
 	}
 
-	log.Printf("Total MAYBANK_CASA_AND_MAE processing time: %v", time.Since(startTime))
 	return statement
 }
-
