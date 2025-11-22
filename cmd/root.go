@@ -2,16 +2,10 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
-	"strings"
 
-	"github.com/aqlanhadi/kwgn/extractor"
-	"github.com/aqlanhadi/kwgn/extractor/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -83,77 +77,6 @@ var (
 	}
 )
 
-var serveCmd = &cobra.Command{
-	Use:   "serve",
-	Short: "Start HTTP API server",
-	Run: func(cmd *cobra.Command, args []string) {
-		http.HandleFunc("/extract", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodPost {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-				w.Write([]byte("Method not allowed"))
-				return
-			}
-
-			// Parse multipart form
-			err := r.ParseMultipartForm(32 << 20) // 32MB max memory
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte("Could not parse multipart form: " + err.Error()))
-				return
-			}
-
-			file, handler, err := r.FormFile("file")
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte("Could not get uploaded file: " + err.Error()))
-				return
-			}
-			defer file.Close()
-
-			// Flags: allow as form values or query params
-			statementOnly := r.FormValue("statement_only") == "true" || r.URL.Query().Get("statement_only") == "true"
-			transactionOnly := r.FormValue("transaction_only") == "true" || r.URL.Query().Get("transaction_only") == "true"
-			textOnly := r.FormValue("text_only") == "true" || r.URL.Query().Get("text_only") == "true"
-			statementType := r.FormValue("statement_type")
-			if statementType == "" {
-				statementType = r.URL.Query().Get("statement_type")
-			}
-
-			if textOnly {
-				// Handle text-only extraction
-				rows, err := common.ExtractRowsFromPDFReader(file)
-				if err != nil || len(*rows) < 1 {
-					w.WriteHeader(http.StatusBadRequest)
-					w.Write([]byte("Could not extract text from file: " + err.Error()))
-					return
-				}
-
-				text := strings.Join(*rows, "\n")
-				textOutput := map[string]string{
-					"filename": handler.Filename,
-					"text":     text,
-				}
-
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(textOutput)
-				return
-			}
-
-			result := extractor.ProcessReader(file, handler.Filename, statementType)
-			finalOutput := extractor.CreateFinalOutput(result, transactionOnly, statementOnly)
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(finalOutput)
-		})
-
-		port := ":8080"
-		log.Printf("Starting API server on %s", port)
-		if err := http.ListenAndServe(port, nil); err != nil {
-			log.Fatalf("Failed to start server: %v", err)
-		}
-	},
-}
-
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -167,16 +90,16 @@ func init() {
 	// Add config flag to root command
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file path (default is ./.kwgn-no-acc.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
-	rootCmd.AddCommand(serveCmd)
 }
 
 func initLogging() {
-	if !verbose {
-		log.SetOutput(io.Discard)
+	if verbose {
+		log.SetFlags(log.Ltime | log.Lmsgprefix | log.Lshortfile)
 	} else {
-		log.SetFlags(log.Ltime | log.Lmsgprefix)
-		log.SetPrefix("INFO: ")
+		log.SetFlags(0)
 	}
+	// Ensure logs go to Stderr so they don't interfere with JSON output on Stdout
+	log.SetOutput(os.Stderr)
 }
 
 func initConfig() {
