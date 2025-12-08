@@ -77,7 +77,7 @@ func Extract(path string, rows *[]string) common.Statement {
 
 	for _, text := range *rows {
 		line := strings.TrimSpace(text)
-		
+
 		// Check Main Transaction Line
 		if match := cfg.MainTxLine.FindStringSubmatch(line); match != nil {
 			if currentTransaction != nil {
@@ -85,7 +85,7 @@ func Extract(path string, rows *[]string) common.Statement {
 			}
 
 			sequence++
-			
+
 			// Date Parsing
 			dateStr := match[1]
 			parseLayout := cfg.DateFormat
@@ -95,7 +95,7 @@ func Extract(path string, rows *[]string) common.Statement {
 					parseLayout = strings.Join(parts[:2], "/")
 				}
 			}
-			
+
 			date, _ := time.ParseInLocation(parseLayout, dateStr, time.Local)
 			if statement.StatementDate != nil {
 				date = common.FixDateYear(date, *statement.StatementDate)
@@ -105,7 +105,7 @@ func Extract(path string, rows *[]string) common.Statement {
 			amount, _ := common.CleanDecimal(match[3])
 			txType := "credit"
 			if strings.HasSuffix(strings.TrimSpace(match[3]), cfg.DebitAmountSuffix) {
-				amount = amount.Neg()
+				amount = amount.Abs().Neg()
 				statement.TotalDebit = statement.TotalDebit.Add(amount)
 				txType = "debit"
 			} else {
