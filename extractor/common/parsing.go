@@ -2,31 +2,23 @@ package common
 
 import (
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
-var nonNumericRegex = regexp.MustCompile(`[^0-9.-]`)
+var nonNumericRegex = regexp.MustCompile(`[^0-9.]`)
 
 // CleanDecimal parses a string into a decimal.Decimal, removing non-numeric characters
 func CleanDecimal(text string) (decimal.Decimal, error) {
-	// Check if the number is enclosed in parentheses (accounting negative)
-	isNegative := strings.Contains(text, "(") && strings.Contains(text, ")")
 
 	cleanText := nonNumericRegex.ReplaceAllString(text, "")
 	if cleanText == "" {
 		return decimal.Zero, nil
 	}
-
 	amount, err := decimal.NewFromString(cleanText)
 	if err != nil {
 		return decimal.Zero, err
-	}
-
-	if isNegative {
-		return amount.Neg(), nil
 	}
 
 	return amount, nil

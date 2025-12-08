@@ -30,3 +30,6 @@ EXPOSE 8080
 ENTRYPOINT ["./kwgn"]
 CMD ["serve"]
 
+
+
+
