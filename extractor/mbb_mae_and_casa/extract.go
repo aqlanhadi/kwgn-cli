@@ -75,10 +75,7 @@ func Extract(path string, rows *[]string) common.Statement {
 	balance := statement.StartingBalance
 	sequence := 0
 
-	for _, text := range *rows {
-		line := strings.TrimSpace(text)
-
-		// Check Main Transaction Line
+	for _, line := range *rows {
 		if match := cfg.MainTxLine.FindStringSubmatch(line); match != nil {
 			if currentTransaction != nil {
 				statement.Transactions = append(statement.Transactions, *currentTransaction)
@@ -127,7 +124,7 @@ func Extract(path string, rows *[]string) common.Statement {
 
 		// Check Description Line
 		if currentTransaction != nil && cfg.DescTxLine.MatchString(line) {
-			currentTransaction.Descriptions = append(currentTransaction.Descriptions, line)
+			currentTransaction.Descriptions = append(currentTransaction.Descriptions, strings.TrimSpace(line))
 		}
 	}
 
