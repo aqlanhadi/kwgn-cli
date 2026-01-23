@@ -17,6 +17,9 @@ type config struct {
 	StatementDate     *regexp.Regexp
 	MainTxLine        *regexp.Regexp
 	DescTxLine        *regexp.Regexp
+	AccountNumber     *regexp.Regexp
+	AccountName       *regexp.Regexp
+	AccountType       *regexp.Regexp
 	CreditSuffix      string
 	DebitAmountSuffix string
 	DateFormat        string
@@ -30,6 +33,9 @@ func loadConfig() config {
 		StatementDate:     regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.statement_date")),
 		MainTxLine:        regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.main_transaction_line")),
 		DescTxLine:        regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.description_transaction_line")),
+		AccountNumber:     regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.account_number")),
+		AccountName:       regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.account_name")),
+		AccountType:       regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.account_type")),
 		CreditSuffix:      viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.credit_suffix"),
 		DebitAmountSuffix: viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.amount_debit_suffix"),
 		DateFormat:        viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.date_format"),
@@ -45,7 +51,30 @@ func Extract(path string, rows *[]string) common.Statement {
 		Transactions: []common.Transaction{},
 	}
 
-	// Extract Metadata
+	// Join all rows for multiline pattern matching (account info spans multiple lines)
+	fullText := strings.Join(*rows, "\n")
+
+	// Extract Account Information from full text
+	if statement.Account.AccountNumber == "" {
+		if match := cfg.AccountNumber.FindStringSubmatch(fullText); len(match) > 1 {
+			statement.Account.AccountNumber = strings.TrimSpace(match[1])
+		}
+	}
+	// AccountName is now what was previously AccountType (e.g., "MAE", "SAVINGS ACCOUNT-I")
+	if statement.Account.AccountName == "" {
+		if match := cfg.AccountType.FindStringSubmatch(fullText); len(match) > 1 {
+			// Check each capture group for non-empty match
+			for i := 1; i < len(match); i++ {
+				if match[i] != "" {
+					statement.Account.AccountName = strings.TrimSpace(match[i])
+					break
+				}
+			}
+		}
+	}
+	statement.Account.AccountType = "" // Leave empty - user can set via web UI
+
+	// Extract Metadata (balances and dates)
 	for _, text := range *rows {
 		if cfg.StartingBalance.MatchString(text) {
 			amount, _ := common.CleanDecimal(text)
@@ -141,7 +170,7 @@ func Extract(path string, rows *[]string) common.Statement {
 	}
 
 	if !statement.CalculatedEndingBalance.Equal(statement.EndingBalance) {
-		log.Printf("✗ Ending balance mismatch: Calc=%s vs Stmt=%s", statement.CalculatedEndingBalance, statement.EndingBalance)
+		log.Printf("WARN ending balance mismatch: calculated=%s stated=%s", statement.CalculatedEndingBalance, statement.EndingBalance)
 	}
 
 	return statement

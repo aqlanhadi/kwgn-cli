@@ -17,8 +17,11 @@ type config struct {
 	NextTransaction        *regexp.Regexp
 	Asterisk               *regexp.Regexp
 	DatetimePattern        *regexp.Regexp
+	AccountNumber          *regexp.Regexp
+	AccountName            *regexp.Regexp
 	DatetimeFormat         string
 	DateFormat             string
+	AccountType            string
 	CreditTransactionTypes []string
 }
 
@@ -28,8 +31,11 @@ func loadConfig() config {
 		NextTransaction:        regexp.MustCompile(`\n\d+/\d+/\d{4}`),
 		Asterisk:               regexp.MustCompile(`\n\*`),
 		DatetimePattern:        regexp.MustCompile(viper.GetString("statement.TNG_EMAIL.patterns.datetime_pattern")),
+		AccountNumber:          regexp.MustCompile(viper.GetString("statement.TNG_EMAIL.patterns.account_number")),
+		AccountName:            regexp.MustCompile(viper.GetString("statement.TNG_EMAIL.patterns.account_name")),
 		DatetimeFormat:         viper.GetString("statement.TNG_EMAIL.patterns.datetime_format"),
 		DateFormat:             viper.GetString("statement.TNG_EMAIL.patterns.date_format"),
+		AccountType:            viper.GetString("statement.TNG_EMAIL.patterns.account_type"),
 		CreditTransactionTypes: strings.Split(viper.GetString("statement.TNG_EMAIL.patterns.credit_transaction_types"), ","),
 	}
 }
@@ -38,6 +44,19 @@ func loadConfig() config {
 func Extract(path string, rows *[]string) common.Statement {
 	cfg := loadConfig()
 	text := strings.Join(*rows, "\n")
+
+	statement := common.Statement{
+		Source:       strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+		Transactions: []common.Transaction{},
+	}
+
+	// Extract account info
+	if match := cfg.AccountNumber.FindStringSubmatch(text); len(match) > 1 {
+		statement.Account.AccountNumber = strings.TrimSpace(match[1])
+	}
+	// AccountName is now what was previously AccountType (source identifier)
+	statement.Account.AccountName = cfg.AccountType
+	statement.Account.AccountType = "" // Leave empty - user can set via web UI
 
 	transactions := []common.Transaction{}
 	var totalCredit, totalDebit decimal.Decimal
@@ -127,18 +146,19 @@ func Extract(path string, rows *[]string) common.Statement {
 		})
 	}
 
-	stmt := common.Statement{
-		Source:       strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
-		TotalCredit:  totalCredit,
-		TotalDebit:   totalDebit,
-		Nett:         totalCredit.Sub(totalDebit),
-		Transactions: transactions,
-	}
+	statement.TotalCredit = totalCredit
+	statement.TotalDebit = totalDebit
+	statement.Nett = totalCredit.Sub(totalDebit)
+	statement.Transactions = transactions
 
 	if len(transactions) > 0 {
-		stmt.TransactionStartDate = transactions[0].Date
-		stmt.TransactionEndDate = transactions[len(transactions)-1].Date
+		statement.TransactionStartDate = transactions[0].Date
+		statement.TransactionEndDate = transactions[len(transactions)-1].Date
+		// Use last transaction date as statement date if not set
+		if statement.StatementDate == nil {
+			statement.StatementDate = &statement.TransactionEndDate
+		}
 	}
 
-	return stmt
+	return statement
 }

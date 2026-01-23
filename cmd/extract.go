@@ -33,7 +33,7 @@ func handler(cmd *cobra.Command, args []string) {
 	if len(args) == 1 && args[0] != "" {
 		target = args[0]
 	}
-	log.Println("📂 Scanning ", target)
+	log.Println("Scanning", target)
 	extractor.ExecuteAgainstPath(target, transactionOnly, statementOnly, statementType, textOnly)
 }
 

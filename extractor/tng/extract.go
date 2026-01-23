@@ -13,42 +13,67 @@ import (
 )
 
 type config struct {
-	Transaction      *regexp.Regexp
-	AmountNumbers    *regexp.Regexp
-	TransactionDate  string
-	DebitSuffix      string
+	Transaction         *regexp.Regexp
+	AmountNumbers       *regexp.Regexp
+	AccountNumber       *regexp.Regexp
+	AccountName         *regexp.Regexp
+	StatementDateRegex  *regexp.Regexp
+	TransactionDate     string
+	DebitSuffix         string
+	AccountType         string
+	StatementDateFormat string
 }
 
 func loadConfig() config {
 	return config{
-		Transaction:     regexp.MustCompile(viper.GetString("statement.TNG.patterns.transaction")),
-		AmountNumbers:   regexp.MustCompile(viper.GetString("statement.TNG.patterns.amount_numbers_pattern")),
-		TransactionDate: viper.GetString("statement.TNG.patterns.transaction_date"),
-		DebitSuffix:     viper.GetString("statement.TNG.patterns.debit_suffix"),
+		Transaction:         regexp.MustCompile(viper.GetString("statement.TNG.patterns.transaction")),
+		AmountNumbers:       regexp.MustCompile(viper.GetString("statement.TNG.patterns.amount_numbers_pattern")),
+		AccountNumber:       regexp.MustCompile(viper.GetString("statement.TNG.patterns.account_number")),
+		AccountName:         regexp.MustCompile(viper.GetString("statement.TNG.patterns.account_name")),
+		StatementDateRegex:  regexp.MustCompile(viper.GetString("statement.TNG.patterns.statement_date")),
+		TransactionDate:     viper.GetString("statement.TNG.patterns.transaction_date"),
+		DebitSuffix:         viper.GetString("statement.TNG.patterns.debit_suffix"),
+		AccountType:         viper.GetString("statement.TNG.patterns.account_type"),
+		StatementDateFormat: viper.GetString("statement.TNG.patterns.statement_date_format"),
 	}
 }
 
 func Extract(path string, rows *[]string) common.Statement {
 	cfg := loadConfig()
-	
-	// In the original code, it re-read the file here. Now we use the passed rows.
-	// Note: TNG PDF extraction might be tricky if rows are not cleanly separated,
-	// but we assume common.ExtractRowsFromPDFReader does a good enough job.
-	
-	// However, TNG extraction in original code used `common.ExtractRowsFromPDF(path)` which calls `pdf.NewReader`.
-	// The rows passed to this function are already extracted.
-	
-	transactions := []common.Transaction{}
-	var totalDebit, totalCredit decimal.Decimal
-	sequence := 0
-	var minDate, maxDate time.Time
-	firstDateSet := false
-	
+
+	// Join all text for account extraction
+	fullText := strings.Join(*rows, "\n")
+
+	statement := common.Statement{
+		Source:       strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+		Transactions: []common.Transaction{},
+	}
+
+	// Extract account info
+	if match := cfg.AccountNumber.FindStringSubmatch(fullText); len(match) > 1 {
+		statement.Account.AccountNumber = strings.TrimSpace(match[1])
+	}
+	// AccountName is now what was previously AccountType (source identifier)
+	statement.Account.AccountName = cfg.AccountType
+	statement.Account.AccountType = "" // Leave empty - user can set via web UI
+
+	// Extract statement date from transaction period
 	loc, err := time.LoadLocation("Asia/Kuala_Lumpur")
 	if err != nil {
 		log.Printf("Warning: Could not load KL location, using Local: %v", err)
 		loc = time.Local
 	}
+	if match := cfg.StatementDateRegex.FindStringSubmatch(fullText); len(match) > 1 {
+		if dt, err := time.ParseInLocation(cfg.StatementDateFormat, strings.TrimSpace(match[1]), loc); err == nil {
+			statement.StatementDate = &dt
+		}
+	}
+
+	transactions := []common.Transaction{}
+	var totalDebit, totalCredit decimal.Decimal
+	sequence := 0
+	var minDate, maxDate time.Time
+	firstDateSet := false
 
 	for _, row := range *rows {
 		matches := cfg.Transaction.FindAllStringSubmatch(row, -1)
@@ -119,14 +144,13 @@ func Extract(path string, rows *[]string) common.Statement {
 		}
 	}
 
-	return common.Statement{
-		Source:               strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
-		TransactionStartDate: minDate,
-		TransactionEndDate:   maxDate,
-		Transactions:         transactions,
-		TotalDebit:           totalDebit,
-		TotalCredit:          totalCredit,
-		Nett:                 totalDebit.Add(totalCredit),
-	}
+	statement.TransactionStartDate = minDate
+	statement.TransactionEndDate = maxDate
+	statement.Transactions = transactions
+	statement.TotalDebit = totalDebit
+	statement.TotalCredit = totalCredit
+	statement.Nett = totalDebit.Add(totalCredit)
+
+	return statement
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/aqlanhadi/kwgn/extractor/mbb_2_cc"
 	"github.com/aqlanhadi/kwgn/extractor/mbb_mae_and_casa"
 	"github.com/aqlanhadi/kwgn/extractor/tng"
+	"github.com/aqlanhadi/kwgn/extractor/tng_csv_export"
 	"github.com/aqlanhadi/kwgn/extractor/tng_email"
 	"github.com/spf13/viper"
 )
@@ -54,11 +55,18 @@ func CreateFinalOutput(stmt common.Statement, transactionOnly bool, statementOnl
 	if !stmt.StartingBalance.IsZero() {
 		outputMap["starting_balance"] = stmt.StartingBalance
 	}
-	if !stmt.EndingBalance.IsZero() {
+	// Include ending balance if transactions exist (0 is a valid balance)
+	if len(stmt.Transactions) > 0 {
 		outputMap["ending_balance"] = stmt.EndingBalance
-	}
-	if !stmt.CalculatedEndingBalance.IsZero() {
 		outputMap["calculated_ending_balance"] = stmt.CalculatedEndingBalance
+	} else {
+		// If no transactions, only include if non-zero (to avoid showing 0 for unextracted values)
+		if !stmt.EndingBalance.IsZero() {
+			outputMap["ending_balance"] = stmt.EndingBalance
+		}
+		if !stmt.CalculatedEndingBalance.IsZero() {
+			outputMap["calculated_ending_balance"] = stmt.CalculatedEndingBalance
+		}
 	}
 
 	// Include transactions unless statementOnly flag is set
@@ -155,6 +163,50 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, s
 		}
 		defer f.Close()
 
+		// Handle CSV files
+		if IsCSVFile(path) {
+			statements, err := ProcessCSVFile(f, path, statementType)
+			if err != nil {
+				log.Printf("Error processing CSV file %s: %v", path, err)
+				emptyJSON := struct{}{}
+				jsonBytes, _ := json.MarshalIndent(emptyJSON, "", "  ")
+				fmt.Println(string(jsonBytes))
+				return
+			}
+
+			// Validate balances for each statement
+			for _, stmt := range statements {
+				valid, msg := tng_csv_export.ValidateBalance(stmt)
+				if valid {
+					log.Printf("OK [%s] %s", stmt.Account.AccountNumber, msg)
+				} else {
+					log.Printf("WARN [%s] %s", stmt.Account.AccountNumber, msg)
+				}
+			}
+
+			// Prepare final output based on flags
+			var finalOutput interface{}
+			if transactionOnly {
+				allTransactions := []common.Transaction{}
+				for _, stmt := range statements {
+					allTransactions = append(allTransactions, stmt.Transactions...)
+				}
+				finalOutput = allTransactions
+			} else if len(statements) == 1 {
+				finalOutput = CreateFinalOutput(statements[0], false, statementOnly)
+			} else {
+				outputList := []interface{}{}
+				for _, stmt := range statements {
+					outputList = append(outputList, CreateFinalOutput(stmt, false, statementOnly))
+				}
+				finalOutput = outputList
+			}
+
+			as_json, _ := json.MarshalIndent(finalOutput, "", "  ")
+			fmt.Println(string(as_json))
+			return
+		}
+
 		if textOnly {
 			// For text-only extraction from single file
 			rows, err := common.ExtractRowsFromPDFReader(f)
@@ -194,6 +246,56 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, s
 	}
 }
 
+// IsCSVFile checks if the file is a CSV based on extension
+func IsCSVFile(filename string) bool {
+	return strings.HasSuffix(strings.ToLower(filename), ".csv")
+}
+
+// detectCSVType attempts to detect the CSV type from its header
+func detectCSVType(reader io.Reader) (string, io.Reader, error) {
+	// We need to peek at the header without consuming the reader
+	// So we'll read some bytes and reconstruct the reader
+	firstBytes := make([]byte, 500)
+	n, err := reader.Read(firstBytes)
+	if err != nil && err != io.EOF {
+		return "", reader, err
+	}
+
+	header := string(firstBytes[:n])
+
+	// Check for TNG CSV export signature
+	if strings.Contains(header, "MFG Number,Trans. No.,Transaction Date/Time,Posted Date,Trans. Type,Sector") {
+		// Reconstruct reader with the read bytes plus remaining
+		newReader := io.MultiReader(strings.NewReader(string(firstBytes[:n])), reader)
+		return "TNG_CSV_EXPORT", newReader, nil
+	}
+
+	// Unknown CSV type - reconstruct reader
+	newReader := io.MultiReader(strings.NewReader(string(firstBytes[:n])), reader)
+	return "", newReader, fmt.Errorf("unknown CSV format")
+}
+
+// ProcessCSVFile processes a CSV file and returns statements
+func ProcessCSVFile(reader io.Reader, filename string, statementType string) ([]common.Statement, error) {
+	// If no type specified, try to detect from header
+	if statementType == "" {
+		detectedType, newReader, err := detectCSVType(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect CSV type: %w", err)
+		}
+		statementType = detectedType
+		reader = newReader
+	}
+
+	// Route to appropriate CSV extractor
+	switch statementType {
+	case "TNG_CSV_EXPORT":
+		return tng_csv_export.ExtractMulti(reader, filename)
+	default:
+		return nil, fmt.Errorf("unsupported CSV statement type: %s", statementType)
+	}
+}
+
 // processStatementByType selects and executes the correct extraction logic based on statementConfigName
 func processStatementByType(filename string, rows *[]string, account common.Account, statementConfigName string) common.Statement {
 	var statement common.Statement
@@ -206,13 +308,145 @@ func processStatementByType(filename string, rows *[]string, account common.Acco
 		statement = tng.Extract(filename, rows)
 	case "TNG_EMAIL":
 		statement = tng_email.Extract(filename, rows)
+	case "TNG_CSV_EXPORT":
+		// This shouldn't be called for CSV files; use ProcessCSVFile instead
+		log.Printf("TNG_CSV_EXPORT should be processed via ProcessCSVFile, not processStatementByType")
+		return common.Statement{}
 	default:
 		log.Printf("Unknown statement type provided: %s", statementConfigName)
 		return common.Statement{} // Return empty if type is unknown
 	}
 
-	statement.Account = account
+	// Merge account info: config values take precedence over extracted values
+	// but only if they are non-empty
+	if account.AccountNumber != "" {
+		statement.Account.AccountNumber = account.AccountNumber
+	}
+	if account.AccountName != "" {
+		statement.Account.AccountName = account.AccountName
+	}
+	if account.AccountType != "" {
+		statement.Account.AccountType = account.AccountType
+	}
+	if account.DebitCredit != "" {
+		statement.Account.DebitCredit = account.DebitCredit
+	}
+	if account.Reconciliable {
+		statement.Account.Reconciliable = account.Reconciliable
+	}
 	return statement
+}
+
+// ProcessReaderMulti processes a PDF/CSV and returns multiple statements if applicable (e.g., CC with multiple cards, CSV with multiple accounts)
+func ProcessReaderMulti(reader io.Reader, filename string, statementType string) []common.Statement {
+	// Handle CSV files
+	if IsCSVFile(filename) {
+		statements, err := ProcessCSVFile(reader, filename, statementType)
+		if err != nil {
+			log.Printf("Error processing CSV file %s: %v", filename, err)
+			return []common.Statement{}
+		}
+		return statements
+	}
+
+	// read file contents for PDF
+	rows, err := common.ExtractRowsFromPDFReader(reader)
+
+	if (err != nil) || (len(*rows) < 1) {
+		log.Printf("Error or no rows found in %s: %v", filename, err)
+		return []common.Statement{}
+	}
+
+	// For CC statements, check if multiple cards exist
+	if statementType == "" || statementType == "MAYBANK_2_CC" {
+		// Check if this looks like a CC statement with multiple cards
+		if mbb_2_cc.HasMultipleCards(rows) || statementType == "MAYBANK_2_CC" {
+			statements := mbb_2_cc.ExtractMulti(filename, rows)
+			if len(statements) > 0 {
+				return statements
+			}
+		}
+	}
+
+	// For other statement types or fallback, use single extraction
+	// Re-open is not possible, so we need to process with the rows we have
+	text := strings.Join(*rows, "\n")
+
+	// Check if accounts configuration exists
+	accountsConfig := viper.Get("accounts")
+
+	if accountsConfig == nil || len(accountsConfig.([]interface{})) == 0 {
+		// If statementType is provided, process without account matching
+		if statementType != "" {
+			result := processStatementByType(filename, rows, common.Account{}, statementType)
+			if result.Account.AccountNumber != "" || len(result.Transactions) > 0 {
+				return []common.Statement{result}
+			}
+			return []common.Statement{}
+		}
+
+		// No accounts config and no statementType override - try all statement types
+		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG", "TNG_EMAIL"}
+
+		for _, stmtType := range statementTypes {
+			if stmtType == "MAYBANK_2_CC" {
+				// Already tried multi above
+				continue
+			}
+			result := processStatementByType(filename, rows, common.Account{}, stmtType)
+			if len(result.Transactions) > 0 || result.Account.AccountNumber != "" {
+				return []common.Statement{result}
+			}
+		}
+
+		return []common.Statement{}
+	}
+
+	accounts := accountsConfig.([]interface{})
+
+	// Check for statementType override first
+	if statementType != "" {
+		for _, acc := range accounts {
+			accountMap := acc.(map[string]interface{})
+			if configName, ok := accountMap["statement_config"].(string); ok && configName == statementType {
+				account := common.Account{
+					AccountNumber: accountMap["number"].(string),
+					AccountType:   accountMap["type"].(string),
+					AccountName:   accountMap["name"].(string),
+					DebitCredit:   accountMap["drcr"].(string),
+					Reconciliable: accountMap["reconciliable"].(bool),
+				}
+				result := processStatementByType(filename, rows, account, statementType)
+				return []common.Statement{result}
+			}
+		}
+		log.Printf("Warning: Statement type override '%s' provided, but no matching configuration found.", statementType)
+		result := processStatementByType(filename, rows, common.Account{}, statementType)
+		if result.Account.AccountNumber != "" || len(result.Transactions) > 0 {
+			return []common.Statement{result}
+		}
+		return []common.Statement{}
+	}
+
+	// Original logic: loop accounts to find match based on regex
+	for _, acc := range accounts {
+		accountMap := acc.(map[string]interface{})
+		accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
+
+		if accountRegex.Match([]byte(text)) {
+			account := common.Account{
+				AccountNumber: accountMap["number"].(string),
+				AccountType:   accountMap["type"].(string),
+				AccountName:   accountMap["name"].(string),
+				DebitCredit:   accountMap["drcr"].(string),
+				Reconciliable: accountMap["reconciliable"].(bool),
+			}
+			result := processStatementByType(filename, rows, account, accountMap["statement_config"].(string))
+			return []common.Statement{result}
+		}
+	}
+
+	return []common.Statement{}
 }
 
 func ProcessReader(reader io.Reader, filename string, statementType string) common.Statement {

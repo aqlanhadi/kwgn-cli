@@ -30,11 +30,13 @@ type Account struct {
 }
 
 type Transaction struct {
-	Sequence     int             `json:"sequence"`
-	Date         time.Time       `json:"date"`
-	Descriptions []string        `json:"descriptions"`
-	Type         string          `json:"type"`
-	Amount       decimal.Decimal `json:"amount"`
-	Balance      decimal.Decimal `json:"balance"`
-	Reference    string          `json:"ref"`
+	Sequence     int                    `json:"sequence"`
+	Date         time.Time              `json:"date"`
+	Descriptions []string               `json:"descriptions"`
+	Type         string                 `json:"type"`
+	Amount       decimal.Decimal        `json:"amount"`
+	Balance      decimal.Decimal        `json:"balance"`
+	Reference    string                 `json:"ref"`
+	Tags         []string               `json:"tags,omitempty"`
+	Data         map[string]interface{} `json:"data,omitempty"`
 }
