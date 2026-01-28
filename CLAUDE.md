@@ -122,8 +122,9 @@ Output Formatting (transaction_only, statement_only, or full)
 
 6. **integrations/postgres/** - Database integration
    - Connection pooling with pgx
-   - Schema management for accounts and transactions
+   - Schema management for accounts, statements, and transactions
    - Import operations from extracted statements
+   - Stores both `descriptions` (array) and `description` (normalized single string)
 
 ### Data Flow
 
@@ -136,8 +137,9 @@ Output Formatting (transaction_only, statement_only, or full)
    - Balances (starting, ending)
    - Individual transactions (date, description, amount, type, balance)
 5. Build `common.Statement` with transactions
-6. Format output based on flags (full/transaction-only/statement-only)
-7. Return as JSON
+6. Normalize descriptions (Title Case, remove special chars) into single `description` field
+7. Format output based on flags (full/transaction-only/statement-only)
+8. Return as JSON
 
 ### Configuration System
 
