@@ -66,22 +66,22 @@ func Extract(path string, rows *[]string) common.Statement {
 
 	// Extract metadata and balance
 	for _, text := range *rows {
-		// Starting Balance
-		if cfg.StartingBalance.MatchString(text) {
+		// Starting Balance - find first match only (avoid accumulating from multiple cards)
+		if statement.StartingBalance.IsZero() && cfg.StartingBalance.MatchString(text) {
 			amount, _ := common.CleanDecimal(text)
 			if strings.HasSuffix(strings.TrimSpace(text), cfg.CreditSuffix) {
 				amount = amount.Neg()
 			}
-			statement.StartingBalance = statement.StartingBalance.Add(amount)
+			statement.StartingBalance = amount
 		}
 
-		// Ending Balance
-		if cfg.EndingBalance.MatchString(text) {
+		// Ending Balance - find first match only (avoid accumulating from multiple cards)
+		if statement.EndingBalance.IsZero() && cfg.EndingBalance.MatchString(text) {
 			amount, _ := common.CleanDecimal(text)
 			if strings.HasSuffix(strings.TrimSpace(text), cfg.CreditSuffix) {
 				amount = amount.Neg()
 			}
-			statement.EndingBalance = statement.EndingBalance.Add(amount)
+			statement.EndingBalance = amount
 		}
 
 		// Statement Date

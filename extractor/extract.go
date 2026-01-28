@@ -52,7 +52,9 @@ func CreateFinalOutput(stmt common.Statement, transactionOnly bool, statementOnl
 	if stmt.StatementDate != nil && !stmt.StatementDate.IsZero() {
 		outputMap["statement_date"] = stmt.StatementDate
 	}
-	if !stmt.StartingBalance.IsZero() {
+	// Include starting balance if transactions exist (0 is a valid balance for continuity)
+	// or if it's explicitly non-zero
+	if len(stmt.Transactions) > 0 || !stmt.StartingBalance.IsZero() {
 		outputMap["starting_balance"] = stmt.StartingBalance
 	}
 	// Include ending balance if transactions exist (0 is a valid balance)
@@ -229,17 +231,32 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, s
 			return
 		}
 
-		result := ProcessReader(f, path, statementType)
+		results := ProcessReaderMulti(f, path, statementType)
 
-		if len(result.Transactions) < 1 && result.Account.AccountNumber == "" { // Check if anything was found
+		if len(results) == 0 {
 			emptyJSON := struct{}{}
 			jsonBytes, _ := json.MarshalIndent(emptyJSON, "", "  ")
 			fmt.Println(string(jsonBytes))
 			return
 		}
 
-		// Prepare final output based on flags
-		finalOutput := CreateFinalOutput(result, transactionOnly, statementOnly)
+		// Handle output for multiple statements
+		var finalOutput interface{}
+		if transactionOnly {
+			allTransactions := []common.Transaction{}
+			for _, stmt := range results {
+				allTransactions = append(allTransactions, stmt.Transactions...)
+			}
+			finalOutput = allTransactions
+		} else if len(results) == 1 {
+			finalOutput = CreateFinalOutput(results[0], false, statementOnly)
+		} else {
+			outputList := []interface{}{}
+			for _, stmt := range results {
+				outputList = append(outputList, CreateFinalOutput(stmt, false, statementOnly))
+			}
+			finalOutput = outputList
+		}
 
 		as_json, _ := json.MarshalIndent(finalOutput, "", "  ")
 		fmt.Println(string(as_json))
