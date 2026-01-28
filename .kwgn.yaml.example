@@ -1,0 +1,121 @@
+# kwgn configuration file
+# This file defines account mappings and statement extraction patterns
+
+accounts:
+  # Maybank Savings Accounts (Islamic)
+  - number: "111111-111111"
+    name: "Salary Account"
+    type: "cash"
+    drcr: "debit"
+    reconciliable: true
+    regex_identifier: "111111-111111"
+    statement_config: "MAYBANK_CASA_AND_MAE"
+
+  - number: "222222-222222"
+    name: "Maybank Debit Card Account"
+    type: "cash"
+    drcr: "debit"
+    reconciliable: true
+    regex_identifier: "222222-222222"
+    statement_config: "MAYBANK_CASA_AND_MAE"
+
+  # Maybank MAE (Mobile App eWallet)
+  - number: "333333333333"
+    name: "MAE"
+    type: "cash"
+    drcr: "debit"
+    reconciliable: true
+    regex_identifier: "333333333333"
+    statement_config: "MAYBANK_CASA_AND_MAE"
+
+  # Maybank Credit Cards - Platinum Mastercard
+  - number: "5239000000000001"
+    name: "Platinum Mastercard (0001)"
+    type: "credit_card"
+    drcr: "credit"
+    reconciliable: true
+    regex_identifier: "5239000000000001"
+    statement_config: "MAYBANK_2_CC"
+
+  - number: "5239000000000002"
+    name: "Platinum Mastercard (0002)"
+    type: "credit_card"
+    drcr: "credit"
+    reconciliable: true
+    regex_identifier: "5239000000000002"
+    statement_config: "MAYBANK_2_CC"
+
+  # Maybank Credit Cards - Platinum AMEX
+  - number: "378900000000001"
+    name: "Platinum AMEX (0001)"
+    type: "credit_card"
+    drcr: "credit"
+    reconciliable: true
+    regex_identifier: "378900000000001"
+    statement_config: "MAYBANK_2_CC"
+
+  - number: "378900000000002"
+    name: "Platinum AMEX (0002)"
+    type: "credit_card"
+    drcr: "credit"
+    reconciliable: true
+    regex_identifier: "378900000000002"
+    statement_config: "MAYBANK_2_CC"
+
+  # Touch 'n Go eWallet (PDF statements)
+  - number: "1000000000000000"
+    name: "TNG"
+    type: "e_wallet"
+    drcr: "debit"
+    reconciliable: false
+    regex_identifier: "1000000000000000"
+    statement_config: "TNG"
+
+  # Touch 'n Go CSV Export accounts
+  - number: "1111111111"
+    name: "TNG"
+    type: "e_wallet"
+    drcr: "debit"
+    reconciliable: false
+    regex_identifier: "1111111111"
+    statement_config: "TNG_CSV_EXPORT"
+
+  - number: "2222222222"
+    name: "TNG"
+    type: "e_wallet"
+    drcr: "debit"
+    reconciliable: false
+    regex_identifier: "2222222222"
+    statement_config: "TNG_CSV_EXPORT"
+
+# Statement extraction patterns (regex patterns for parsing PDFs)
+# These are used by the extractors to identify and parse different statement types
+
+statement:
+  MAYBANK_CASA_AND_MAE:
+    patterns:
+      starting_balance: "(?i)BALANCE\\s+B/F.*?([\\d,]+\\.\\d{2})"
+      ending_balance: "(?i)BALANCE\\s+C/F.*?([\\d,]+\\.\\d{2})"
+      main_transaction_line: "^(\\d{2}\\s+\\w{3})\\s+(.+?)\\s+(DR|CR)?\\s*([\\d,]+\\.\\d{2})\\s+([\\d,]+\\.\\d{2})$"
+
+  MAYBANK_2_CC:
+    patterns:
+      starting_balance: "(?i)PREVIOUS\\s+BALANCE.*?([\\d,]+\\.\\d{2})"
+      ending_balance: "(?i)NEW\\s+BALANCE.*?([\\d,]+\\.\\d{2})"
+      main_transaction_line: "^(\\d{2}\\s+\\w{3})\\s+(.+?)\\s+([\\d,]+\\.\\d{2})$"
+
+  TNG:
+    patterns:
+      starting_balance: "(?i)Opening\\s+Balance.*?RM\\s*([\\d,]+\\.\\d{2})"
+      ending_balance: "(?i)Closing\\s+Balance.*?RM\\s*([\\d,]+\\.\\d{2})"
+      main_transaction_line: "^(\\d{2}\\s+\\w{3}\\s+\\d{4})\\s+(.+?)\\s+(\\+|-)\\s*RM\\s*([\\d,]+\\.\\d{2})\\s+RM\\s*([\\d,]+\\.\\d{2})$"
+
+  TNG_EMAIL:
+    patterns:
+      # TNG email statements have different format
+      main_transaction_line: "^(.+?)\\s+RM\\s*([\\d,]+\\.\\d{2})$"
+
+  TNG_CSV_EXPORT:
+    # CSV files don't use regex patterns - they're parsed directly
+    # This section exists for completeness but is not used
+    patterns: {}
