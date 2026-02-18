@@ -6,18 +6,19 @@ import (
 	"time"
 
 	"github.com/aqlanhadi/kwgn/extractor/common"
+	"github.com/jackc/pgx/v5"
 )
 
 // StatementExists checks if a statement already exists using natural key
 func (db *DB) StatementExists(ctx context.Context, accountID string, statementDate time.Time) (bool, string, error) {
 	var id string
 	err := db.Pool.QueryRow(ctx, `
-		SELECT id FROM statements 
+		SELECT id FROM statements
 		WHERE account_id = $1 AND statement_date = $2
 	`, accountID, statementDate).Scan(&id)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return false, "", nil
 		}
 		return false, "", fmt.Errorf("failed to check statement: %w", err)

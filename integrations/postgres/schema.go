@@ -11,12 +11,12 @@ CREATE TABLE IF NOT EXISTS accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     account_number VARCHAR(50) NOT NULL,
     account_name VARCHAR(255) NOT NULL,
-    account_type VARCHAR(100) DEFAULT NULL,
+    account_type VARCHAR(100),
     debit_credit VARCHAR(10) DEFAULT '',
     reconciliable BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     UNIQUE(account_number)
 );
 
@@ -35,8 +35,7 @@ CREATE TABLE IF NOT EXISTS statements (
     transaction_start_date DATE,
     transaction_end_date DATE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Natural key for deduplication
+
     UNIQUE(account_id, statement_date)
 );
 
@@ -52,11 +51,13 @@ CREATE TABLE IF NOT EXISTS transactions (
     amount NUMERIC(18,2) NOT NULL,
     balance NUMERIC(18,2) NOT NULL,
     reference VARCHAR(255) DEFAULT '',
+    tag TEXT,
+    verified BOOLEAN DEFAULT false,
+    verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     tags TEXT[] DEFAULT '{}',
     data JSONB DEFAULT '{}',
 
-    -- Prevent duplicate transactions within a statement
     UNIQUE(statement_id, sequence)
 );
 
@@ -67,48 +68,118 @@ CREATE INDEX IF NOT EXISTS idx_transactions_statement_id ON transactions(stateme
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_transactions_reference ON transactions(reference) WHERE reference != '';
 
--- Unique index for idempotent TNG CSV imports (prevents duplicate Transaction IDs per account)
+-- Unique index for idempotent TNG CSV imports
 CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_unique_reference
 ON transactions(statement_id, reference) WHERE reference != '';
 `
 
-// migrateDDL adds new columns to existing tables
+// migrateDDL adds new columns to existing tables and ensures constraints exist.
+// This handles the case where tables were created externally (e.g. by Drizzle/Supabase migrations)
+// with a different schema than the DDL above.
 const migrateDDL = `
--- Add data column if not exists
+-- Add missing columns to transactions
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                   WHERE table_name = 'transactions' AND column_name = 'data') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'data') THEN
         ALTER TABLE transactions ADD COLUMN data JSONB DEFAULT '{}';
     END IF;
 END $$;
 
--- Add tags column if not exists
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                   WHERE table_name = 'transactions' AND column_name = 'tags') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'tags') THEN
         ALTER TABLE transactions ADD COLUMN tags TEXT[] DEFAULT '{}';
     END IF;
 END $$;
 
--- Make account_type nullable
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'description') THEN
+        ALTER TABLE transactions ADD COLUMN description TEXT;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'tag') THEN
+        ALTER TABLE transactions ADD COLUMN tag TEXT;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'verified') THEN
+        ALTER TABLE transactions ADD COLUMN verified BOOLEAN DEFAULT false;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'verified_at') THEN
+        ALTER TABLE transactions ADD COLUMN verified_at TIMESTAMPTZ;
+    END IF;
+END $$;
+
+-- Make account_type nullable (may have been NOT NULL in older schemas)
 DO $$ BEGIN
     ALTER TABLE accounts ALTER COLUMN account_type DROP NOT NULL;
 EXCEPTION
-    WHEN others THEN
-        -- Column already nullable or doesn't exist, ignore
-        NULL;
+    WHEN others THEN NULL;
 END $$;
 
--- Create unique index for idempotent reference handling
+-- Unique index for idempotent reference handling
 CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_unique_reference
 ON transactions(statement_id, reference) WHERE reference != '';
 
--- Add description column if not exists (normalized single string for matching)
+-- Ensure constraints exist on tables that may have been created externally
+-- without the constraints defined in the DDL above.
+
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                   WHERE table_name = 'transactions' AND column_name = 'description') THEN
-        ALTER TABLE transactions ADD COLUMN description TEXT;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'accounts'::regclass AND contype = 'p') THEN
+        ALTER TABLE accounts ADD PRIMARY KEY (id);
     END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'accounts'::regclass AND contype = 'u') THEN
+        ALTER TABLE accounts ADD CONSTRAINT accounts_account_number_key UNIQUE (account_number);
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'statements'::regclass AND contype = 'p') THEN
+        ALTER TABLE statements ADD PRIMARY KEY (id);
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'statements'::regclass AND conname = 'statements_account_id_statement_date_key') THEN
+        ALTER TABLE statements ADD CONSTRAINT statements_account_id_statement_date_key UNIQUE (account_id, statement_date);
+    END IF;
+EXCEPTION WHEN duplicate_table THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'statements'::regclass AND contype = 'f') THEN
+        ALTER TABLE statements ADD CONSTRAINT statements_account_id_fkey
+            FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE;
+    END IF;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'transactions'::regclass AND contype = 'p') THEN
+        ALTER TABLE transactions ADD PRIMARY KEY (id);
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'transactions'::regclass AND conname = 'transactions_statement_id_sequence_key') THEN
+        ALTER TABLE transactions ADD CONSTRAINT transactions_statement_id_sequence_key UNIQUE (statement_id, sequence);
+    END IF;
+EXCEPTION WHEN duplicate_table THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'transactions'::regclass AND contype = 'f') THEN
+        ALTER TABLE transactions ADD CONSTRAINT transactions_statement_id_fkey
+            FOREIGN KEY (statement_id) REFERENCES statements(id) ON DELETE CASCADE;
+    END IF;
+EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 `
 

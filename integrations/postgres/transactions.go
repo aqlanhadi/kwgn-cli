@@ -57,6 +57,7 @@ func (db *DB) CreateTransactionsIdempotent(ctx context.Context, statementID stri
 
 		// Use ON CONFLICT DO NOTHING for idempotent imports
 		// This relies on the unique index idx_transactions_unique_reference (statement_id, reference) WHERE reference != ''
+		// id and created_at use database defaults (UUID v7 and NOW())
 		var sql string
 		if idempotent && tx.Reference != "" {
 			sql = `
