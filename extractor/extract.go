@@ -35,7 +35,6 @@ func CreateFinalOutput(stmt common.Statement, transactionOnly bool, statementOnl
 	if stmt.Account.AccountNumber != "" ||
 		stmt.Account.AccountName != "" ||
 		stmt.Account.AccountType != "" ||
-		stmt.Account.DebitCredit != "" ||
 		stmt.Account.Reconciliable {
 		outputMap["account"] = stmt.Account
 	}
@@ -345,9 +344,6 @@ func processStatementByType(filename string, rows *[]string, account common.Acco
 	if account.AccountType != "" {
 		statement.Account.AccountType = account.AccountType
 	}
-	if account.DebitCredit != "" {
-		statement.Account.DebitCredit = account.DebitCredit
-	}
 	if account.Reconciliable {
 		statement.Account.Reconciliable = account.Reconciliable
 	}
@@ -430,7 +426,6 @@ func ProcessReaderMulti(reader io.Reader, filename string, statementType string)
 					AccountNumber: accountMap["number"].(string),
 					AccountType:   accountMap["type"].(string),
 					AccountName:   accountMap["name"].(string),
-					DebitCredit:   accountMap["drcr"].(string),
 					Reconciliable: accountMap["reconciliable"].(bool),
 				}
 				result := processStatementByType(filename, rows, account, statementType)
@@ -455,7 +450,6 @@ func ProcessReaderMulti(reader io.Reader, filename string, statementType string)
 				AccountNumber: accountMap["number"].(string),
 				AccountType:   accountMap["type"].(string),
 				AccountName:   accountMap["name"].(string),
-				DebitCredit:   accountMap["drcr"].(string),
 				Reconciliable: accountMap["reconciliable"].(bool),
 			}
 			result := processStatementByType(filename, rows, account, accountMap["statement_config"].(string))
@@ -545,7 +539,6 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 					AccountNumber: accountMap["number"].(string),
 					AccountType:   accountMap["type"].(string),
 					AccountName:   accountMap["name"].(string),
-					DebitCredit:   accountMap["drcr"].(string),
 					Reconciliable: accountMap["reconciliable"].(bool),
 				}
 				// Directly process based on the overridden statement type
@@ -567,7 +560,6 @@ func ProcessReader(reader io.Reader, filename string, statementType string) comm
 					AccountNumber: accountMap["number"].(string),
 					AccountType:   accountMap["type"].(string),
 					AccountName:   accountMap["name"].(string),
-					DebitCredit:   accountMap["drcr"].(string),
 					Reconciliable: accountMap["reconciliable"].(bool),
 				}
 

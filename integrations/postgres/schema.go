@@ -12,7 +12,11 @@ CREATE TABLE IF NOT EXISTS accounts (
     account_number VARCHAR(50) NOT NULL,
     account_name VARCHAR(255) NOT NULL,
     account_type VARCHAR(100),
-    debit_credit VARCHAR(10) DEFAULT '',
+    -- No debit_credit column. It recorded an account's natural balance
+    -- direction, which account_type already determines: a credit_card is always
+    -- 'credit' and a cash account always 'debit'. mbb_2_cc hardcoded the string
+    -- rather than deriving it, which is the tell -- two columns, one fact, and a
+    -- way for them to disagree. Removed with the "drcr" config key that fed it.
     reconciliable BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -77,19 +81,25 @@ ON transactions(statement_id, reference) WHERE reference != '';
 // This handles the case where tables were created externally (e.g. by Drizzle/Supabase migrations)
 // with a different schema than the DDL above.
 const migrateDDL = `
--- Add missing columns to transactions
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'data') THEN
-        ALTER TABLE transactions ADD COLUMN data JSONB DEFAULT '{}';
-    END IF;
-END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'tags') THEN
-        ALTER TABLE transactions ADD COLUMN tags TEXT[] DEFAULT '{}';
-    END IF;
-END $$;
-
+-- Add missing columns to transactions.
+--
+-- ONLY columns kwgn-cli itself writes belong here. This block runs on every
+-- import, so anything listed is silently RE-CREATED after a migration drops
+-- it. "verified" and "verified_at" were listed here and written by nothing --
+-- so a migration that dropped them saw them reappear, empty, on the next
+-- import, for months.
+--
+-- "tags" and "data" are gone too, along with the INSERT that wrote them. Only
+-- the TnG CSV extractor ever filled them (row sector, raw source fields) and
+-- no TnG data is loaded: this schema is Maybank statements only for now.
+-- The extractor still populates common.Transaction.Tags/.Data, so restoring
+-- them is this block plus the column list in CreateTransactionsIdempotent --
+-- see the note there.
+--
+-- Before adding a column here, check an extractor actually writes it AND that
+-- its data is loaded. If only the web app or a classifier writes it, it
+-- belongs in the Drizzle migration alone, and repeating it here just gives the
+-- two schemas a way to disagree.
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'description') THEN
         ALTER TABLE transactions ADD COLUMN description TEXT;
@@ -99,18 +109,6 @@ END $$;
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'tag') THEN
         ALTER TABLE transactions ADD COLUMN tag TEXT;
-    END IF;
-END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'verified') THEN
-        ALTER TABLE transactions ADD COLUMN verified BOOLEAN DEFAULT false;
-    END IF;
-END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'verified_at') THEN
-        ALTER TABLE transactions ADD COLUMN verified_at TIMESTAMPTZ;
     END IF;
 END $$;
 

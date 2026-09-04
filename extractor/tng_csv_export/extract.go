@@ -187,7 +187,6 @@ func createStatement(mfgNumber string, rows []TNGCSVRow, filename string) common
 			AccountNumber: mfgNumber,
 			AccountName:   "TNG_CSV_EXPORT",
 			AccountType:   "", // Leave empty - user can set via web UI
-			DebitCredit:   "",
 			Reconciliable: false, // TNG CSV data is never reconciliable
 		},
 		Transactions: []common.Transaction{},

@@ -15,16 +15,15 @@ func (db *DB) GetOrCreateAccount(ctx context.Context, account common.Account) (s
 	// Upsert: insert if not exists, update if exists, always return the id.
 	// This is atomic and safe against duplicates even without application-level locking.
 	err := db.Pool.QueryRow(ctx, `
-		INSERT INTO accounts (account_number, account_name, account_type, debit_credit, reconciliable)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO accounts (account_number, account_name, account_type, reconciliable)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (account_number) DO UPDATE SET
 			account_name = EXCLUDED.account_name,
 			account_type = CASE WHEN EXCLUDED.account_type != '' THEN EXCLUDED.account_type ELSE accounts.account_type END,
-			debit_credit = CASE WHEN EXCLUDED.debit_credit != '' THEN EXCLUDED.debit_credit ELSE accounts.debit_credit END,
 			reconciliable = EXCLUDED.reconciliable,
 			updated_at = NOW()
 		RETURNING id
-	`, account.AccountNumber, account.AccountName, account.AccountType, account.DebitCredit, account.Reconciliable).Scan(&id)
+	`, account.AccountNumber, account.AccountName, account.AccountType, account.Reconciliable).Scan(&id)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to upsert account: %w", err)

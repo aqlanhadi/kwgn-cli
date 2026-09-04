@@ -6,7 +6,6 @@ accounts:
   - number: "111111-111111"
     name: "Salary Account"
     type: "cash"
-    drcr: "debit"
     reconciliable: true
     regex_identifier: "111111-111111"
     statement_config: "MAYBANK_CASA_AND_MAE"
@@ -14,7 +13,6 @@ accounts:
   - number: "222222-222222"
     name: "Maybank Debit Card Account"
     type: "cash"
-    drcr: "debit"
     reconciliable: true
     regex_identifier: "222222-222222"
     statement_config: "MAYBANK_CASA_AND_MAE"
@@ -23,7 +21,6 @@ accounts:
   - number: "333333333333"
     name: "MAE"
     type: "cash"
-    drcr: "debit"
     reconciliable: true
     regex_identifier: "333333333333"
     statement_config: "MAYBANK_CASA_AND_MAE"
@@ -32,7 +29,6 @@ accounts:
   - number: "5239000000000001"
     name: "Platinum Mastercard (0001)"
     type: "credit_card"
-    drcr: "credit"
     reconciliable: true
     regex_identifier: "5239000000000001"
     statement_config: "MAYBANK_2_CC"
@@ -40,7 +36,6 @@ accounts:
   - number: "5239000000000002"
     name: "Platinum Mastercard (0002)"
     type: "credit_card"
-    drcr: "credit"
     reconciliable: true
     regex_identifier: "5239000000000002"
     statement_config: "MAYBANK_2_CC"
@@ -49,7 +44,6 @@ accounts:
   - number: "378900000000001"
     name: "Platinum AMEX (0001)"
     type: "credit_card"
-    drcr: "credit"
     reconciliable: true
     regex_identifier: "378900000000001"
     statement_config: "MAYBANK_2_CC"
@@ -57,7 +51,6 @@ accounts:
   - number: "378900000000002"
     name: "Platinum AMEX (0002)"
     type: "credit_card"
-    drcr: "credit"
     reconciliable: true
     regex_identifier: "378900000000002"
     statement_config: "MAYBANK_2_CC"
@@ -66,7 +59,6 @@ accounts:
   - number: "1000000000000000"
     name: "TNG"
     type: "e_wallet"
-    drcr: "debit"
     reconciliable: false
     regex_identifier: "1000000000000000"
     statement_config: "TNG"
@@ -75,7 +67,6 @@ accounts:
   - number: "1111111111"
     name: "TNG"
     type: "e_wallet"
-    drcr: "debit"
     reconciliable: false
     regex_identifier: "1111111111"
     statement_config: "TNG_CSV_EXPORT"
@@ -83,7 +74,6 @@ accounts:
   - number: "2222222222"
     name: "TNG"
     type: "e_wallet"
-    drcr: "debit"
     reconciliable: false
     regex_identifier: "2222222222"
     statement_config: "TNG_CSV_EXPORT"

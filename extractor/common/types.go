@@ -25,7 +25,6 @@ type Account struct {
 	AccountNumber string `json:"account_number"`
 	AccountName   string `json:"account_name"`
 	AccountType   string `json:"account_type"`
-	DebitCredit   string `json:"debit_credit"`
 	Reconciliable bool   `json:"reconciliable"`
 }
 

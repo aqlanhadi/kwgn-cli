@@ -62,7 +62,6 @@ func Extract(path string, rows *[]string) common.Statement {
 		statement.Account.AccountName = strings.TrimSpace(match[1])
 	}
 	statement.Account.AccountType = "" // Leave empty - user can set via web UI
-	statement.Account.DebitCredit = "credit"
 
 	// Extract metadata and balance
 	for _, text := range *rows {
@@ -258,7 +257,6 @@ func processCardSection(cfg config, section cardSection, baseSource string, acco
 			AccountNumber: section.cardNumber,
 			AccountName:   section.cardType, // Card type (e.g., "MAYBANK 2 PLAT MASTERCARD")
 			AccountType:   "",               // Leave empty - user can set via web UI
-			DebitCredit:   "credit",
 		},
 	}
 

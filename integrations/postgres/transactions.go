@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -36,21 +35,12 @@ func (db *DB) CreateTransactionsIdempotent(ctx context.Context, statementID stri
 
 	batch := &pgx.Batch{}
 	for _, tx := range transactions {
-		// Serialize data to JSON, default to empty object
-		dataJSON := []byte("{}")
-		if tx.Data != nil {
-			var err error
-			dataJSON, err = json.Marshal(tx.Data)
-			if err != nil {
-				dataJSON = []byte("{}")
-			}
-		}
-
-		// Default tags to empty array
-		tags := tx.Tags
-		if tags == nil {
-			tags = []string{}
-		}
+		// tx.Tags and tx.Data are NOT persisted. Only the TnG CSV extractor
+		// fills them, and this database holds Maybank statements only, so the
+		// columns were dropped rather than carried empty. To restore TnG:
+		// re-add the two columns in schema.go's migrateDDL, add "tags, data"
+		// back to the column lists below with two more placeholders, and pass
+		// tags and dataJSON as the last two arguments.
 
 		// Normalize description for matching (join, collapse spaces, uppercase)
 		description := normalizeDescription(tx.Descriptions)
@@ -62,21 +52,21 @@ func (db *DB) CreateTransactionsIdempotent(ctx context.Context, statementID stri
 		if idempotent && tx.Reference != "" {
 			sql = `
 				INSERT INTO transactions (
-					statement_id, sequence, date, descriptions, description, type, amount, balance, reference, tags, data
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+					statement_id, sequence, date, descriptions, description, type, amount, balance, reference
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				ON CONFLICT (statement_id, reference) WHERE reference != '' DO NOTHING
 			`
 		} else {
 			sql = `
 				INSERT INTO transactions (
-					statement_id, sequence, date, descriptions, description, type, amount, balance, reference, tags, data
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+					statement_id, sequence, date, descriptions, description, type, amount, balance, reference
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			`
 		}
 
 		batch.Queue(sql,
 			statementID, tx.Sequence, tx.Date, tx.Descriptions, description,
-			tx.Type, tx.Amount, tx.Balance, tx.Reference, tags, dataJSON,
+			tx.Type, tx.Amount, tx.Balance, tx.Reference,
 		)
 	}
 
