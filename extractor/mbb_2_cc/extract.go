@@ -61,7 +61,9 @@ func Extract(path string, rows *[]string) common.Statement {
 	if match := cfg.AccountType.FindStringSubmatch(fullText); len(match) > 1 {
 		statement.Account.AccountName = strings.TrimSpace(match[1])
 	}
-	statement.Account.AccountType = "" // Leave empty - user can set via web UI
+	// The statement format IS the fact: see mbb_mae_and_casa for why this is
+	// no longer left for a hand edit.
+	statement.Account.AccountType = "credit_card"
 
 	// Extract metadata and balance
 	for _, text := range *rows {
@@ -256,7 +258,7 @@ func processCardSection(cfg config, section cardSection, baseSource string, acco
 		Account: common.Account{
 			AccountNumber: section.cardNumber,
 			AccountName:   section.cardType, // Card type (e.g., "MAYBANK 2 PLAT MASTERCARD")
-			AccountType:   "",               // Leave empty - user can set via web UI
+			AccountType:   "credit_card",    // The statement format is the fact
 		},
 	}
 

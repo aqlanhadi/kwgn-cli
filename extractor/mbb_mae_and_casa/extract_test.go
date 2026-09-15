@@ -161,8 +161,11 @@ func TestExtract_AccountType_CASA(t *testing.T) {
 
 	statement := Extract("test.pdf", rows)
 
-	if statement.Account.AccountType != "PERSONAL SAVER-i" {
-		t.Errorf("Expected account type 'PERSONAL SAVER-i', got '%s'", statement.Account.AccountType)
+	if statement.Account.AccountName != "PERSONAL SAVER-i" {
+		t.Errorf("Expected account name 'PERSONAL SAVER-i', got '%s'", statement.Account.AccountName)
+	}
+	if statement.Account.AccountType != "cash" {
+		t.Errorf("Expected account type 'cash', got '%s'", statement.Account.AccountType)
 	}
 }
 
@@ -172,8 +175,11 @@ func TestExtract_AccountType_MAE(t *testing.T) {
 
 	statement := Extract("test.pdf", rows)
 
-	if statement.Account.AccountType != "MAE" {
-		t.Errorf("Expected account type 'MAE', got '%s'", statement.Account.AccountType)
+	if statement.Account.AccountName != "MAE" {
+		t.Errorf("Expected account name 'MAE', got '%s'", statement.Account.AccountName)
+	}
+	if statement.Account.AccountType != "cash" {
+		t.Errorf("Expected account type 'cash', got '%s'", statement.Account.AccountType)
 	}
 }
 

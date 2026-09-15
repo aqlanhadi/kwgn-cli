@@ -72,7 +72,11 @@ func Extract(path string, rows *[]string) common.Statement {
 			}
 		}
 	}
-	statement.Account.AccountType = "" // Leave empty - user can set via web UI
+	// The statement format IS the fact: every account this extractor reads is
+	// a deposit account, and classify.py and the transactions_v view both
+	// branch on this value. Leaving it for someone to set by hand later is how
+	// a database rebuilt from PDFs came up with every account untyped.
+	statement.Account.AccountType = "cash"
 
 	// Extract Metadata (balances and dates)
 	for _, text := range *rows {
