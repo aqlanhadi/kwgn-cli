@@ -296,7 +296,7 @@ The `data` JSONB column stores additional TNG-specific fields:
 
 ```bash
 ./kwgn tng login    # prints a QR in the terminal (--open for an image); scan it in the TNG eWallet app
-./kwgn tng sync     # merges into ~/kwgn-data/tng/{ewallet,card,rfid}.json
+./kwgn tng sync     # merges into ~/kwgn-data/tng/{ewallet,card,rfid}.json; shows the login QR first if not signed in
 ./kwgn tng status   # shows when the login expires, and which days are covered
 ```
 

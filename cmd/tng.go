@@ -33,7 +33,7 @@ var tngCmd = &cobra.Command{
 TNG eWallet app, then downloads eWallet, Touch 'n Go card and RFID history.
 
   kwgn tng login     show the QR, wait for the scan, save the login
-  kwgn tng sync      download history and merge it into --out
+  kwgn tng sync      download history and merge it into --out (logs in first if needed)
   kwgn tng status    show when the saved login expires
   kwgn tng logout    end the session and delete the saved login`,
 }
@@ -42,55 +42,61 @@ var tngLoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Sign in by scanning a QR code with the TNG eWallet app",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Minute)
-		defer cancel()
-		c := tng.NewClient(nil)
-		qrDir, err := os.MkdirTemp("", "kwgn-tng-login-")
-		if err != nil {
-			return err
-		}
-		defer os.RemoveAll(qrDir)
-
-		for attempt := 1; ; attempt++ {
-			q, err := c.InitQRLogin(ctx)
-			if err != nil {
-				return err
-			}
-			png, err := q.PNG()
-			if err != nil {
-				return err
-			}
-			// A new file per QR: image viewers do not reload a file that changes
-			// on disk, so reusing one name leaves the expired code on screen.
-			qrPath := filepath.Join(qrDir, fmt.Sprintf("tng-login-%d.png", attempt))
-			if err := os.WriteFile(qrPath, png, 0o600); err != nil {
-				return err
-			}
-			fmt.Fprintln(os.Stderr)
-			shown := q.WriteTerminalQR(os.Stderr)
-			fmt.Fprintf(os.Stderr, "Scan the QR in the TNG eWallet app (Scan > Login). It is valid until %s.\n  image: %s\n",
-				q.Expires().Local().Format("15:04:05"), qrPath)
-			if tngOpenImage || !shown {
-				openFile(qrPath)
-			}
-
-			status, err := waitForScan(ctx, c, q)
-			if err != nil {
-				return err
-			}
-			if status == tng.StatusSuccess {
-				break
-			}
-			fmt.Fprintln(os.Stderr, "QR expired; showing a new one.")
-		}
-
-		if err := tng.SaveSession(tngSessionPath, c.Session); err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stderr, "Signed in. Saved to %s\n", tngSessionPath)
-		printSessionExpiry(c.Session)
-		return nil
+		_, err := login(cmd.Context())
+		return err
 	},
+}
+
+// login shows QR codes until one is scanned, then saves the session.
+func login(ctx context.Context) (*tng.Session, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	c := tng.NewClient(nil)
+	qrDir, err := os.MkdirTemp("", "kwgn-tng-login-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(qrDir)
+
+	for attempt := 1; ; attempt++ {
+		q, err := c.InitQRLogin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		png, err := q.PNG()
+		if err != nil {
+			return nil, err
+		}
+		// A new file per QR: image viewers do not reload a file that changes
+		// on disk, so reusing one name leaves the expired code on screen.
+		qrPath := filepath.Join(qrDir, fmt.Sprintf("tng-login-%d.png", attempt))
+		if err := os.WriteFile(qrPath, png, 0o600); err != nil {
+			return nil, err
+		}
+		fmt.Fprintln(os.Stderr)
+		shown := q.WriteTerminalQR(os.Stderr)
+		fmt.Fprintf(os.Stderr, "Scan the QR in the TNG eWallet app (Scan > Login). It is valid until %s.\n  image: %s\n",
+			q.Expires().Local().Format("15:04:05"), qrPath)
+		if tngOpenImage || !shown {
+			openFile(qrPath)
+		}
+
+		status, err := waitForScan(ctx, c, q)
+		if err != nil {
+			return nil, err
+		}
+		if status == tng.StatusSuccess {
+			break
+		}
+		fmt.Fprintln(os.Stderr, "QR expired; showing a new one.")
+	}
+
+	if err := tng.SaveSession(tngSessionPath, c.Session); err != nil {
+		return nil, err
+	}
+	fmt.Fprintf(os.Stderr, "Signed in. Saved to %s\n", tngSessionPath)
+	printSessionExpiry(c.Session)
+	return c.Session, nil
 }
 
 // waitForScan polls verify-login until the QR is scanned or expires.
@@ -129,16 +135,23 @@ var tngSyncCmd = &cobra.Command{
 	Long: `Downloads eWallet, card and RFID history and merges it into one JSON file per
 source in --out, keyed by each source's transaction ID.
 
+Without a saved login (or with one about to end), it shows the login QR first.
+
 With no --from, a source with nothing on disk is backfilled as far as the
 portal allows; otherwise the sync re-reads the last 14 days before the newest
 row on disk, to pick up transactions the portal posts late.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s, err := tng.LoadSession(tngSessionPath)
-		if err != nil {
+		if err != nil && !errors.Is(err, tng.ErrNotLoggedIn) {
 			return err
 		}
-		if s.RefreshExpired(time.Now()) {
-			return tng.ErrSessionExpired
+		// No usable login: sign in here rather than failing. The margin leaves
+		// time for the sync itself, since a login cannot be extended.
+		if s == nil || s.RefreshExpired(time.Now().Add(syncLoginMargin)) {
+			fmt.Fprintln(os.Stderr, "Not signed in to TNG (or the login is about to end); scan the QR to continue.")
+			if s, err = login(cmd.Context()); err != nil {
+				return err
+			}
 		}
 		c := tng.NewClient(s)
 		c.OnSessionChanged = func(s *tng.Session) error { return tng.SaveSession(tngSessionPath, s) }
@@ -175,6 +188,10 @@ row on disk, to pick up transactions the portal posts late.`,
 		return nil
 	},
 }
+
+// syncLoginMargin: a saved login with less time left than this is replaced
+// before syncing. A full backfill takes a few minutes.
+const syncLoginMargin = 5 * time.Minute
 
 func syncSource(ctx context.Context, c *tng.Client, cov tng.Coverage, src tng.Source, to time.Time) error {
 	existing, err := tng.LoadRows(tngOutDir, src)
@@ -369,7 +386,7 @@ func init() {
 	defaultSession, _ := tng.DefaultSessionPath()
 	home, _ := os.UserHomeDir()
 	tngCmd.PersistentFlags().StringVar(&tngSessionPath, "session", defaultSession, "where the login is saved")
-	tngLoginCmd.Flags().BoolVar(&tngOpenImage, "open", false, "also open the QR as an image (it always opens if the terminal cannot show it)")
+	tngCmd.PersistentFlags().BoolVar(&tngOpenImage, "open", false, "also open the QR as an image (it always opens if the terminal cannot show it)")
 	tngCmd.PersistentFlags().StringVar(&tngOutDir, "out", filepath.Join(home, "kwgn-data", "tng"), "directory holding ewallet.json, card.json, rfid.json and coverage.json")
 	tngSyncCmd.Flags().StringVar(&tngFrom, "from", "", "start date YYYY-MM-DD (default: backfill, or 14 days before the newest row on disk)")
 	tngSyncCmd.Flags().StringVar(&tngTo, "to", "", "end date YYYY-MM-DD (default: today)")
