@@ -290,6 +290,24 @@ The `data` JSONB column stores additional TNG-specific fields:
 }
 ```
 
+## TNG Portal Sync (`kwgn tng`)
+
+`integrations/tng` pulls history straight from the Touch 'n Go consumer portal's private APIs (read from the portal's JavaScript, not published; expect breakage).
+
+```bash
+./kwgn tng login    # prints a QR in the terminal (--open for an image); scan it in the TNG eWallet app
+./kwgn tng sync     # merges into ~/kwgn-data/tng/{ewallet,card,rfid}.json; shows the login QR first if not signed in
+./kwgn tng status   # shows when the login expires, and which days are covered
+```
+
+- **Coverage** (`~/kwgn-data/tng/coverage.json`, `integrations/tng/coverage.go`): the days each source was fetched completely (rows received = count the portal reported). The newest 14 days are never counted (late posting; the next sync confirms them). The eWallet keeps about 13 months (measured 2026-10-12), so eWallet days older than 365 days at fetch time are not counted, and a gap older than that is reported `LOST`; card/RFID retention is unknown and not applied. Coverage means "fetched everything listed", not "proven": the card's running balance proves completeness, the eWallet needs a balance from the app.
+
+- **Login lasts 30 minutes** (access token 5 min, renewed automatically with the refresh token; the refresh token cannot be extended). Unattended sync is not possible: each sync session starts with a QR scan. The session file lives in the OS config dir (`~/Library/Application Support/kwgn/tng-session.json`), mode 0600.
+- **Two sites.** eWallet: `api-eportal.tngdigital.com.my/v1/`, `Authorization: <token>`, 90-day windows, 10 rows per page, ~2 years back (422 beyond). Card + RFID: `consumer2.touchngo.com.my/mx/api/v1/`, entered by SSO via `auth/tngd/bind/verify` → `sso-login-authenticate`; year windows, 1000-row pages, history back to 2021.
+- **The card portal issues its token once per eWallet login.** A second SSO answers `000` with no token, so the token is saved in the session file.
+- **Rows are stored raw and merged by key** (`walletRef`; `cardMfgNo|txSeqNo|txId`; RFID `id`). The eWallet drops rows older than ~13 months, so the on-disk files are the only long-term record; never overwrite them with a fresh pull.
+- Not imported into Postgres: the database holds Maybank statements only (see the note in `integrations/postgres/transactions.go`). RFID tolls also appear in the eWallet history, and card reloads appear on both the eWallet and card side.
+
 ## Dependencies of Note
 
 - **dslipak/pdf**: PDF text extraction (row-based reading)
