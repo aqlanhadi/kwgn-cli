@@ -117,24 +117,9 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, s
 			return
 		}
 
-		processedStatements := []common.Statement{}
-
-		entries, err := os.ReadDir(path)
+		processedStatements, err := ProcessDir(path, statementType)
 		if err != nil {
 			log.Fatal(err)
-		}
-		for _, e := range entries {
-			filePath := filepath.Join(path, e.Name())
-			f, err := os.Open(filePath)
-			if err != nil {
-				log.Printf("Failed to open file %s: %v", e.Name(), err)
-				continue
-			}
-			defer f.Close()
-			statement := ProcessReader(f, filePath, statementType)
-			if len(statement.Transactions) > 0 || statement.Account.AccountNumber != "" { // Process if transactions or account found
-				processedStatements = append(processedStatements, statement)
-			}
 		}
 
 		// Prepare final output based on flags
@@ -260,6 +245,36 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, s
 		as_json, _ := json.MarshalIndent(finalOutput, "", "  ")
 		fmt.Println(string(as_json))
 	}
+}
+
+// ProcessDir extracts every file directly inside dir through the same path as a
+// single file and `kwgn import` (ProcessReaderMulti), so one file can yield
+// several statements: a Maybank 2 PDF carries one per card, a TnG CSV one per
+// card number. Subdirectories are skipped.
+func ProcessDir(dir string, statementType string) ([]common.Statement, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	statements := []common.Statement{}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		filePath := filepath.Join(dir, e.Name())
+		f, err := os.Open(filePath)
+		if err != nil {
+			log.Printf("Failed to open file %s: %v", e.Name(), err)
+			continue
+		}
+		for _, stmt := range ProcessReaderMulti(f, filePath, statementType) {
+			if len(stmt.Transactions) > 0 || stmt.Account.AccountNumber != "" {
+				statements = append(statements, stmt)
+			}
+		}
+		f.Close()
+	}
+	return statements, nil
 }
 
 // IsCSVFile checks if the file is a CSV based on extension
