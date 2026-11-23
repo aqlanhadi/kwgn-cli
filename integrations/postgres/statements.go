@@ -44,19 +44,32 @@ func (db *DB) CreateStatement(ctx context.Context, accountID string, stmt common
 		txEndDate = &stmt.TransactionEndDate
 	}
 
+	// Opening and closing balances are stored only when the issuer printed
+	// them. A not_printed statement stores NULL: a balance worked out from the
+	// rows would make accounting_check §1 pass by construction.
+	var startBal, endBal any
+	switch stmt.BalanceBasis {
+	case "printed":
+		startBal, endBal = stmt.StartingBalance, stmt.EndingBalance
+	case "not_printed":
+		startBal, endBal = nil, nil
+	default:
+		return "", fmt.Errorf("statement %s: balance basis %q, want printed or not_printed (the extractor must say which)", stmt.Source, stmt.BalanceBasis)
+	}
+
 	err := db.Pool.QueryRow(ctx, `
 		INSERT INTO statements (
 			account_id, source, statement_date,
 			starting_balance, ending_balance, calculated_ending_balance,
 			total_credit, total_debit, nett,
-			transaction_start_date, transaction_end_date
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			transaction_start_date, transaction_end_date, balance_basis
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id
 	`,
 		accountID, stmt.Source, stmtDate,
-		stmt.StartingBalance, stmt.EndingBalance, stmt.CalculatedEndingBalance,
+		startBal, endBal, stmt.CalculatedEndingBalance,
 		stmt.TotalCredit, stmt.TotalDebit, stmt.Nett,
-		txStartDate, txEndDate,
+		txStartDate, txEndDate, stmt.BalanceBasis,
 	).Scan(&id)
 
 	if err != nil {

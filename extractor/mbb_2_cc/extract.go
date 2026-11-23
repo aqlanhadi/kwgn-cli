@@ -64,6 +64,9 @@ func Extract(path string, rows *[]string) common.Statement {
 	// The statement format IS the fact: see mbb_mae_and_casa for why this is
 	// no longer left for a hand edit.
 	statement.Account.AccountType = "credit_card"
+	statement.Account.Institution = "maybank"
+	// Maybank prints the previous and current balance on every statement.
+	statement.BalanceBasis = "printed"
 
 	// Extract metadata and balance
 	for _, text := range *rows {
@@ -259,7 +262,9 @@ func processCardSection(cfg config, section cardSection, baseSource string, acco
 			AccountNumber: section.cardNumber,
 			AccountName:   section.cardType, // Card type (e.g., "MAYBANK 2 PLAT MASTERCARD")
 			AccountType:   "credit_card",    // The statement format is the fact
+			Institution:   "maybank",
 		},
+		BalanceBasis: "printed", // each card section prints its own balances
 	}
 
 	// Extract starting balance (YOUR PREVIOUS STATEMENT BALANCE)

@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS accounts (
     account_number VARCHAR(50) NOT NULL,
     account_name VARCHAR(255) NOT NULL,
     account_type VARCHAR(100),
+    -- Owned by kwgn-ui migration 0007; listed so a database this DDL creates
+    -- accepts the INSERT in accounts.go.
+    institution VARCHAR(50) NOT NULL,
     -- No debit_credit column. It recorded an account's natural balance
     -- direction, which account_type already determines: a credit_card is always
     -- 'credit' and a cash account always 'debit'. mbb_2_cc hardcoded the string
@@ -38,6 +41,8 @@ CREATE TABLE IF NOT EXISTS statements (
     nett NUMERIC(18,2) NOT NULL,
     transaction_start_date DATE,
     transaction_end_date DATE,
+    -- Owned by kwgn-ui migration 0007 (its two CHECKs live there).
+    balance_basis TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     UNIQUE(account_id, statement_date)

@@ -77,6 +77,9 @@ func Extract(path string, rows *[]string) common.Statement {
 	// branch on this value. Leaving it for someone to set by hand later is how
 	// a database rebuilt from PDFs came up with every account untyped.
 	statement.Account.AccountType = "cash"
+	statement.Account.Institution = "maybank"
+	// Maybank prints the opening and closing balance on every statement.
+	statement.BalanceBasis = "printed"
 
 	// Extract Metadata (balances and dates)
 	for _, text := range *rows {

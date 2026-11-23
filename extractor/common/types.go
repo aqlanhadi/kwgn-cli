@@ -19,12 +19,20 @@ type Statement struct {
 	TransactionStartDate    time.Time       `json:"transaction_start_date,omitempty"`
 	TransactionEndDate      time.Time       `json:"transaction_end_date,omitempty"`
 	CalculatedEndingBalance decimal.Decimal `json:"calculated_ending_balance"`
+	// Where StartingBalance/EndingBalance came from: "printed" (the issuer
+	// printed them) or "not_printed" (nobody did; both are stored NULL). Set by
+	// the extractor, because the statement format is the fact; the Postgres
+	// import refuses a statement that leaves it empty.
+	BalanceBasis string `json:"balance_basis,omitempty"`
 }
 
 type Account struct {
 	AccountNumber string `json:"account_number"`
 	AccountName   string `json:"account_name"`
 	AccountType   string `json:"account_type"`
+	// Who issues the statements ("maybank", "tng"). Set by the extractor; the
+	// Postgres import refuses an account that leaves it empty.
+	Institution   string `json:"institution,omitempty"`
 	Reconciliable bool   `json:"reconciliable"`
 }
 
