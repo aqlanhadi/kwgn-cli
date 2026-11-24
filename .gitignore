@@ -38,4 +38,4 @@ Thumbs.db
 !*.example.yaml
 
 # Logs
-*.log
+*.log/kwgn

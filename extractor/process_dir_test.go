@@ -7,7 +7,7 @@ import (
 )
 
 // A folder must yield every statement a file holds, as a single-file extract
-// and `kwgn import` do. Before ProcessDir the folder loop kept one statement
+// and kwgn-ledger (through ExtractFile) do. Before ProcessDir the folder loop kept one statement
 // per file, so a Maybank 2 PDF's Amex rows landed on the Mastercard and a
 // multi-card TnG CSV was dropped.
 func TestProcessDir_FileWithSeveralStatements(t *testing.T) {

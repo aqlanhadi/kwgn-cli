@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/aqlanhadi/kwgn/extractor/common"
@@ -16,7 +15,6 @@ import (
 	"github.com/aqlanhadi/kwgn/extractor/tng"
 	"github.com/aqlanhadi/kwgn/extractor/tng_csv_export"
 	"github.com/aqlanhadi/kwgn/extractor/tng_email"
-	"github.com/spf13/viper"
 )
 
 // Removed StatementWithoutTransactions struct as we'll use maps for marshalling
@@ -248,7 +246,7 @@ func ExecuteAgainstPath(path string, transactionOnly bool, statementOnly bool, s
 }
 
 // ProcessDir extracts every file directly inside dir through the same path as a
-// single file and `kwgn import` (ProcessReaderMulti), so one file can yield
+// single file and ExtractFile (ProcessReaderMulti), so one file can yield
 // several statements: a Maybank 2 PDF carries one per card, a TnG CSV one per
 // card number. Subdirectories are skipped.
 func ProcessDir(dir string, statementType string) ([]common.Statement, error) {
@@ -365,9 +363,17 @@ func processStatementByType(filename string, rows *[]string, account common.Acco
 	return statement
 }
 
-// ProcessReaderMulti processes a PDF/CSV and returns multiple statements if applicable (e.g., CC with multiple cards, CSV with multiple accounts)
+// pdfFormats is the order a PDF is tried in when its format is not named.
+// MAYBANK_2_CC is tried first, separately, because one PDF can hold several
+// cards (see ProcessReaderMulti).
+var pdfFormats = []string{"MAYBANK_CASA_AND_MAE", "TNG", "TNG_EMAIL"}
+
+// ProcessReaderMulti reads one PDF or CSV and returns every statement it holds:
+// a Maybank 2 card PDF carries one per card, a TnG CSV one per card number.
+// statementType names the format ("MAYBANK_2_CC", ...); empty detects it.
+// No configuration is consulted: account number, name, type and institution
+// come from the document itself.
 func ProcessReaderMulti(reader io.Reader, filename string, statementType string) []common.Statement {
-	// Handle CSV files
 	if IsCSVFile(filename) {
 		statements, err := ProcessCSVFile(reader, filename, statementType)
 		if err != nil {
@@ -377,77 +383,21 @@ func ProcessReaderMulti(reader io.Reader, filename string, statementType string)
 		return statements
 	}
 
-	// read file contents for PDF
 	rows, err := common.ExtractRowsFromPDFReader(reader)
-
-	if (err != nil) || (len(*rows) < 1) {
+	if err != nil || rows == nil || len(*rows) < 1 {
 		log.Printf("Error or no rows found in %s: %v", filename, err)
 		return []common.Statement{}
 	}
 
-	// For CC statements, check if multiple cards exist
 	if statementType == "" || statementType == "MAYBANK_2_CC" {
-		// Check if this looks like a CC statement with multiple cards
-		if mbb_2_cc.HasMultipleCards(rows) || statementType == "MAYBANK_2_CC" {
-			statements := mbb_2_cc.ExtractMulti(filename, rows)
-			if len(statements) > 0 {
+		if statementType == "MAYBANK_2_CC" || mbb_2_cc.HasMultipleCards(rows) {
+			if statements := mbb_2_cc.ExtractMulti(filename, rows); len(statements) > 0 {
 				return statements
 			}
 		}
 	}
 
-	// For other statement types or fallback, use single extraction
-	// Re-open is not possible, so we need to process with the rows we have
-	text := strings.Join(*rows, "\n")
-
-	// Check if accounts configuration exists
-	accountsConfig := viper.Get("accounts")
-
-	if accountsConfig == nil || len(accountsConfig.([]interface{})) == 0 {
-		// If statementType is provided, process without account matching
-		if statementType != "" {
-			result := processStatementByType(filename, rows, common.Account{}, statementType)
-			if result.Account.AccountNumber != "" || len(result.Transactions) > 0 {
-				return []common.Statement{result}
-			}
-			return []common.Statement{}
-		}
-
-		// No accounts config and no statementType override - try all statement types
-		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG", "TNG_EMAIL"}
-
-		for _, stmtType := range statementTypes {
-			if stmtType == "MAYBANK_2_CC" {
-				// Already tried multi above
-				continue
-			}
-			result := processStatementByType(filename, rows, common.Account{}, stmtType)
-			if len(result.Transactions) > 0 || result.Account.AccountNumber != "" {
-				return []common.Statement{result}
-			}
-		}
-
-		return []common.Statement{}
-	}
-
-	accounts := accountsConfig.([]interface{})
-
-	// Check for statementType override first
 	if statementType != "" {
-		for _, acc := range accounts {
-			accountMap := acc.(map[string]interface{})
-			if configName, ok := accountMap["statement_config"].(string); ok && configName == statementType {
-				account := common.Account{
-					AccountNumber: accountMap["number"].(string),
-					AccountType:   accountMap["type"].(string),
-					AccountName:   accountMap["name"].(string),
-					Reconciliable: accountMap["reconciliable"].(bool),
-				}
-				result := processStatementByType(filename, rows, account, statementType)
-				return []common.Statement{result}
-			}
-		}
-		log.Printf("Warning: Statement type override '%s' provided, but no matching configuration found.", statementType)
 		result := processStatementByType(filename, rows, common.Account{}, statementType)
 		if result.Account.AccountNumber != "" || len(result.Transactions) > 0 {
 			return []common.Statement{result}
@@ -455,134 +405,72 @@ func ProcessReaderMulti(reader io.Reader, filename string, statementType string)
 		return []common.Statement{}
 	}
 
-	// Original logic: loop accounts to find match based on regex
-	for _, acc := range accounts {
-		accountMap := acc.(map[string]interface{})
-		accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
-
-		if accountRegex.Match([]byte(text)) {
-			account := common.Account{
-				AccountNumber: accountMap["number"].(string),
-				AccountType:   accountMap["type"].(string),
-				AccountName:   accountMap["name"].(string),
-				Reconciliable: accountMap["reconciliable"].(bool),
-			}
-			result := processStatementByType(filename, rows, account, accountMap["statement_config"].(string))
+	for _, stmtType := range pdfFormats {
+		result := processStatementByType(filename, rows, common.Account{}, stmtType)
+		if len(result.Transactions) > 0 || result.Account.AccountNumber != "" {
 			return []common.Statement{result}
 		}
 	}
-
 	return []common.Statement{}
 }
 
+// ProcessReader is ProcessReaderMulti for callers that expect one statement:
+// it returns the first, or an empty statement.
 func ProcessReader(reader io.Reader, filename string, statementType string) common.Statement {
-	// read file contents
-	rows, err := common.ExtractRowsFromPDFReader(reader)
-
-	if (err != nil) || (len(*rows) < 1) {
-		log.Printf("Error or no rows found in %s: %v", filename, err)
-		return common.Statement{}
+	if statements := ProcessReaderMulti(reader, filename, statementType); len(statements) > 0 {
+		return statements[0]
 	}
-
-	text := strings.Join(*rows, "\n")
-
-	// Check if accounts configuration exists
-	accountsConfig := viper.Get("accounts")
-
-	if accountsConfig == nil {
-		// If statementType is provided, process without account matching
-		if statementType != "" {
-			return processStatementByType(filename, rows, common.Account{}, statementType)
-		}
-
-		// No accounts config and no statementType override - try all statement types
-		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG", "TNG_EMAIL"}
-
-		for _, stmtType := range statementTypes {
-			result := processStatementByType(filename, rows, common.Account{}, stmtType)
-
-			// Check if we got a successful result (has transactions or account info)
-			if len(result.Transactions) > 0 || result.Account.AccountNumber != "" {
-				return result
-			}
-		}
-
-		return common.Statement{}
-	}
-
-	accounts, ok := accountsConfig.([]interface{})
-	if !ok {
-		log.Printf("Invalid accounts configuration format (not a slice)")
-		// If statementType is provided, process without account matching
-		if statementType != "" {
-			return processStatementByType(filename, rows, common.Account{}, statementType)
-		}
-		return common.Statement{}
-	}
-
-	// Check if accounts array is empty
-	if len(accounts) == 0 {
-		// If statementType is provided, process without account matching
-		if statementType != "" {
-			return processStatementByType(filename, rows, common.Account{}, statementType)
-		}
-
-		// Empty accounts config and no statementType override - try all statement types
-		statementTypes := []string{"MAYBANK_CASA_AND_MAE", "MAYBANK_2_CC", "TNG", "TNG_EMAIL"}
-
-		for _, stmtType := range statementTypes {
-			result := processStatementByType(filename, rows, common.Account{}, stmtType)
-
-			// Check if we got a successful result (has transactions or account info)
-			if len(result.Transactions) > 0 || result.Account.AccountNumber != "" {
-				return result
-			}
-		}
-
-		return common.Statement{}
-	}
-
-	// loop accounts to find match
-
-	// Check for statementType override first
-	if statementType != "" {
-		foundOverride := false
-		for _, acc := range accounts {
-			accountMap := acc.(map[string]interface{})
-			if configName, ok := accountMap["statement_config"].(string); ok && configName == statementType {
-				account := common.Account{
-					AccountNumber: accountMap["number"].(string),
-					AccountType:   accountMap["type"].(string),
-					AccountName:   accountMap["name"].(string),
-					Reconciliable: accountMap["reconciliable"].(bool),
-				}
-				// Directly process based on the overridden statement type
-				return processStatementByType(filename, rows, account, statementType) // Call helper function
-			}
-		}
-		if !foundOverride {
-			log.Printf("Warning: Statement type override '%s' provided, but no matching configuration found. Processing without account details.", statementType)
-			return processStatementByType(filename, rows, common.Account{}, statementType)
-		}
-	} else {
-		// Original logic: loop accounts to find match based on regex
-		for _, acc := range accounts {
-			accountMap := acc.(map[string]interface{})
-			accountRegex := regexp.MustCompile(accountMap["regex_identifier"].(string))
-
-			if accountRegex.Match([]byte(text)) {
-				account := common.Account{
-					AccountNumber: accountMap["number"].(string),
-					AccountType:   accountMap["type"].(string),
-					AccountName:   accountMap["name"].(string),
-					Reconciliable: accountMap["reconciliable"].(bool),
-				}
-
-				// process based on statement config from the matched account
-				return processStatementByType(filename, rows, account, accountMap["statement_config"].(string)) // Call helper function
-			}
-		}
-	}
-
 	return common.Statement{}
+}
+
+// FileResult is what one file in a folder yielded.
+type FileResult struct {
+	Path       string
+	Statements []common.Statement
+	Err        error
+}
+
+// ExtractFile reads one statement file (PDF or CSV) and returns every
+// statement in it. It is the library entry point: importers call this and
+// decide for themselves what to store.
+func ExtractFile(path string) ([]common.Statement, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	statements := []common.Statement{}
+	for _, stmt := range ProcessReaderMulti(f, path, "") {
+		if len(stmt.Transactions) > 0 || stmt.Account.AccountNumber != "" {
+			statements = append(statements, stmt)
+		}
+	}
+	if len(statements) == 0 {
+		return nil, fmt.Errorf("%s: no statement in a format kwgn reads", filepath.Base(path))
+	}
+	return statements, nil
+}
+
+// ExtractDir runs ExtractFile on every file directly inside dir (sorted by
+// name; subdirectories and dotfiles skipped) and reports each file's outcome,
+// so one unreadable file does not hide the others.
+func ExtractDir(dir string) ([]FileResult, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	results := []FileResult{}
+	for _, e := range entries {
+		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(e.Name()))
+		if ext != ".pdf" && ext != ".csv" {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		statements, err := ExtractFile(path)
+		results = append(results, FileResult{Path: path, Statements: statements, Err: err})
+	}
+	return results, nil
 }

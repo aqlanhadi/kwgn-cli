@@ -10,7 +10,6 @@ import (
 
 	"github.com/aqlanhadi/kwgn/extractor/common"
 	"github.com/shopspring/decimal"
-	"github.com/spf13/viper"
 )
 
 type config struct {
@@ -28,16 +27,16 @@ type config struct {
 
 func loadConfig() config {
 	return config{
-		StartingBalance: regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.starting_balance")),
-		EndingBalance:   regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.ending_balance")),
-		StatementDate:   regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.statement_date")),
-		Transaction:     regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.transaction")),
-		AccountNumber:   regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.account_number")),
-		AccountName:     regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.account_name")),
-		AccountType:     regexp.MustCompile(viper.GetString("statement.MAYBANK_2_CC.patterns.account_type")),
-		CreditSuffix:    viper.GetString("statement.MAYBANK_2_CC.patterns.credit_suffix"),
-		DateFormat:      viper.GetString("statement.MAYBANK_2_CC.patterns.date_format"),
-		StatementFormat: viper.GetString("statement.MAYBANK_2_CC.patterns.statement_format"),
+		StartingBalance: regexp.MustCompile(common.Pattern("MAYBANK_2_CC", "starting_balance")),
+		EndingBalance:   regexp.MustCompile(common.Pattern("MAYBANK_2_CC", "ending_balance")),
+		StatementDate:   regexp.MustCompile(common.Pattern("MAYBANK_2_CC", "statement_date")),
+		Transaction:     regexp.MustCompile(common.Pattern("MAYBANK_2_CC", "transaction")),
+		AccountNumber:   regexp.MustCompile(common.Pattern("MAYBANK_2_CC", "account_number")),
+		AccountName:     regexp.MustCompile(common.Pattern("MAYBANK_2_CC", "account_name")),
+		AccountType:     regexp.MustCompile(common.Pattern("MAYBANK_2_CC", "account_type")),
+		CreditSuffix:    common.Pattern("MAYBANK_2_CC", "credit_suffix"),
+		DateFormat:      common.Pattern("MAYBANK_2_CC", "date_format"),
+		StatementFormat: common.Pattern("MAYBANK_2_CC", "statement_format"),
 	}
 }
 

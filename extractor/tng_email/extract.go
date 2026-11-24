@@ -9,7 +9,6 @@ import (
 
 	"github.com/aqlanhadi/kwgn/extractor/common"
 	"github.com/shopspring/decimal"
-	"github.com/spf13/viper"
 )
 
 type config struct {
@@ -27,16 +26,16 @@ type config struct {
 
 func loadConfig() config {
 	return config{
-		Transaction:            regexp.MustCompile(viper.GetString("statement.TNG_EMAIL.patterns.transaction")),
+		Transaction:            regexp.MustCompile(common.Pattern("TNG_EMAIL", "transaction")),
 		NextTransaction:        regexp.MustCompile(`\n\d+/\d+/\d{4}`),
 		Asterisk:               regexp.MustCompile(`\n\*`),
-		DatetimePattern:        regexp.MustCompile(viper.GetString("statement.TNG_EMAIL.patterns.datetime_pattern")),
-		AccountNumber:          regexp.MustCompile(viper.GetString("statement.TNG_EMAIL.patterns.account_number")),
-		AccountName:            regexp.MustCompile(viper.GetString("statement.TNG_EMAIL.patterns.account_name")),
-		DatetimeFormat:         viper.GetString("statement.TNG_EMAIL.patterns.datetime_format"),
-		DateFormat:             viper.GetString("statement.TNG_EMAIL.patterns.date_format"),
-		AccountType:            viper.GetString("statement.TNG_EMAIL.patterns.account_type"),
-		CreditTransactionTypes: strings.Split(viper.GetString("statement.TNG_EMAIL.patterns.credit_transaction_types"), ","),
+		DatetimePattern:        regexp.MustCompile(common.Pattern("TNG_EMAIL", "datetime_pattern")),
+		AccountNumber:          regexp.MustCompile(common.Pattern("TNG_EMAIL", "account_number")),
+		AccountName:            regexp.MustCompile(common.Pattern("TNG_EMAIL", "account_name")),
+		DatetimeFormat:         common.Pattern("TNG_EMAIL", "datetime_format"),
+		DateFormat:             common.Pattern("TNG_EMAIL", "date_format"),
+		AccountType:            common.Pattern("TNG_EMAIL", "account_type"),
+		CreditTransactionTypes: strings.Split(common.Pattern("TNG_EMAIL", "credit_transaction_types"), ","),
 	}
 }
 

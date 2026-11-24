@@ -9,7 +9,6 @@ import (
 
 	"github.com/aqlanhadi/kwgn/extractor/common"
 	"github.com/shopspring/decimal"
-	"github.com/spf13/viper"
 )
 
 type config struct {
@@ -26,15 +25,15 @@ type config struct {
 
 func loadConfig() config {
 	return config{
-		Transaction:         regexp.MustCompile(viper.GetString("statement.TNG.patterns.transaction")),
-		AmountNumbers:       regexp.MustCompile(viper.GetString("statement.TNG.patterns.amount_numbers_pattern")),
-		AccountNumber:       regexp.MustCompile(viper.GetString("statement.TNG.patterns.account_number")),
-		AccountName:         regexp.MustCompile(viper.GetString("statement.TNG.patterns.account_name")),
-		StatementDateRegex:  regexp.MustCompile(viper.GetString("statement.TNG.patterns.statement_date")),
-		TransactionDate:     viper.GetString("statement.TNG.patterns.transaction_date"),
-		DebitSuffix:         viper.GetString("statement.TNG.patterns.debit_suffix"),
-		AccountType:         viper.GetString("statement.TNG.patterns.account_type"),
-		StatementDateFormat: viper.GetString("statement.TNG.patterns.statement_date_format"),
+		Transaction:         regexp.MustCompile(common.Pattern("TNG", "transaction")),
+		AmountNumbers:       regexp.MustCompile(common.Pattern("TNG", "amount_numbers_pattern")),
+		AccountNumber:       regexp.MustCompile(common.Pattern("TNG", "account_number")),
+		AccountName:         regexp.MustCompile(common.Pattern("TNG", "account_name")),
+		StatementDateRegex:  regexp.MustCompile(common.Pattern("TNG", "statement_date")),
+		TransactionDate:     common.Pattern("TNG", "transaction_date"),
+		DebitSuffix:         common.Pattern("TNG", "debit_suffix"),
+		AccountType:         common.Pattern("TNG", "account_type"),
+		StatementDateFormat: common.Pattern("TNG", "statement_date_format"),
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/aqlanhadi/kwgn/extractor/common"
-	"github.com/spf13/viper"
 )
 
 type config struct {
@@ -28,18 +27,18 @@ type config struct {
 
 func loadConfig() config {
 	return config{
-		StartingBalance:   regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.starting_balance")),
-		EndingBalance:     regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.ending_balance")),
-		StatementDate:     regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.statement_date")),
-		MainTxLine:        regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.main_transaction_line")),
-		DescTxLine:        regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.description_transaction_line")),
-		AccountNumber:     regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.account_number")),
-		AccountName:       regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.account_name")),
-		AccountType:       regexp.MustCompile(viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.account_type")),
-		CreditSuffix:      viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.credit_suffix"),
-		DebitAmountSuffix: viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.amount_debit_suffix"),
-		DateFormat:        viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.date_format"),
-		StatementFormat:   viper.GetString("statement.MAYBANK_CASA_AND_MAE.patterns.statement_format"),
+		StartingBalance:   regexp.MustCompile(common.Pattern("MAYBANK_CASA_AND_MAE", "starting_balance")),
+		EndingBalance:     regexp.MustCompile(common.Pattern("MAYBANK_CASA_AND_MAE", "ending_balance")),
+		StatementDate:     regexp.MustCompile(common.Pattern("MAYBANK_CASA_AND_MAE", "statement_date")),
+		MainTxLine:        regexp.MustCompile(common.Pattern("MAYBANK_CASA_AND_MAE", "main_transaction_line")),
+		DescTxLine:        regexp.MustCompile(common.Pattern("MAYBANK_CASA_AND_MAE", "description_transaction_line")),
+		AccountNumber:     regexp.MustCompile(common.Pattern("MAYBANK_CASA_AND_MAE", "account_number")),
+		AccountName:       regexp.MustCompile(common.Pattern("MAYBANK_CASA_AND_MAE", "account_name")),
+		AccountType:       regexp.MustCompile(common.Pattern("MAYBANK_CASA_AND_MAE", "account_type")),
+		CreditSuffix:      common.Pattern("MAYBANK_CASA_AND_MAE", "credit_suffix"),
+		DebitAmountSuffix: common.Pattern("MAYBANK_CASA_AND_MAE", "amount_debit_suffix"),
+		DateFormat:        common.Pattern("MAYBANK_CASA_AND_MAE", "date_format"),
+		StatementFormat:   common.Pattern("MAYBANK_CASA_AND_MAE", "statement_format"),
 	}
 }
 

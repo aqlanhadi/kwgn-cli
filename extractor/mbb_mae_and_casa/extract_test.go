@@ -139,8 +139,9 @@ func TestExtract_AccountName_CASA(t *testing.T) {
 
 	statement := Extract("test.pdf", rows)
 
-	if statement.Account.AccountName != "JOHN DOE BIN SMITH" {
-		t.Errorf("Expected account name 'JOHN DOE BIN SMITH', got '%s'", statement.Account.AccountName)
+	// The account name is the PRODUCT the statement prints, not the holder.
+	if statement.Account.AccountName != "PERSONAL SAVER-i" {
+		t.Errorf("Expected account name 'PERSONAL SAVER-i', got '%s'", statement.Account.AccountName)
 	}
 }
 
@@ -150,8 +151,9 @@ func TestExtract_AccountName_MAE(t *testing.T) {
 
 	statement := Extract("test.pdf", rows)
 
-	if statement.Account.AccountName != "JANE DOE BINTI AHMAD" {
-		t.Errorf("Expected account name 'JANE DOE BINTI AHMAD', got '%s'", statement.Account.AccountName)
+	// The account name is the PRODUCT the statement prints, not the holder.
+	if statement.Account.AccountName != "MAE" {
+		t.Errorf("Expected account name 'MAE', got '%s'", statement.Account.AccountName)
 	}
 }
 

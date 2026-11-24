@@ -1,6 +1,6 @@
 # kwgn
 
-A utility to extract structured data from Malaysian financial statement PDFs. Supports both command-line and HTTP API usage.
+A utility and Go library that extracts structured data from Malaysian financial statements (Maybank CASA/MAE and Maybank 2 card PDFs, TnG PDFs and CSV exports). It only extracts: storing and interpreting the data is kwgn-ledger's job, which imports this module.
 
 ---
 
@@ -21,7 +21,7 @@ go build -o kwgn
 Extract statements from a folder or file:
 
 ```sh
-./kwgn extract -f <folder-or-file> [--transaction-only] [--statement-only] [--statement-type <statement-type>] [--config <config-file>]
+./kwgn extract -f <folder-or-file> [--transaction-only] [--statement-only] [--statement-type <statement-type>]
 ```
 
 - `-f, --folder` : Folder or file to scan for statements (required)
@@ -29,7 +29,6 @@ Extract statements from a folder or file:
 - `--statement-only` : Output only statement details (no transactions)
 - `--statement-type` : Override statement type detection (e.g., MAYBANK_CASA_AND_MAE)
   Possible values: `MAYBANK_CASA_AND_MAE`, `MAYBANK_2_CC`, `TNG`
-- `--config` : Path to config file (default: ./.kwgn.yaml)
 - `--output` : Output folder (default: .)
 
 **Example:**
@@ -87,12 +86,23 @@ curl -F "file=@/path/to/statement.pdf" \
 
 ---
 
-## Configuration
+## Library use
 
-- Uses a YAML config file (default: `.kwgn.yaml`).
-- See sample config for account and statement patterns.
+```go
+import "github.com/aqlanhadi/kwgn/extractor"
 
----
+statements, err := extractor.ExtractFile("statement.pdf") // every statement in one file
+results, err := extractor.ExtractDir("./statements")      // per-file results, failures included
+```
+
+No configuration file is needed or read: each format's patterns live with its
+extractor (`extractor/common/patterns.go`), and the account number, product name,
+type and institution come from the document itself.
+
+## TnG portal sync
+
+`kwgn tng login | sync | status | logout` downloads eWallet, card and toll-tag
+history from the Touch 'n Go portal into `~/kwgn-data/tng/`. See CLAUDE.md.
 
 ---
 
