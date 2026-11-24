@@ -33,9 +33,12 @@ bin/
 ehthumbs.db
 Thumbs.db
 
-# Config files
+# Local config (unused since patterns moved into the library)
 *.yaml
-!*.example.yaml
 
 # Logs
-*.log/kwgn
+*.log
+
+# Built CLI
+/kwgn
+
